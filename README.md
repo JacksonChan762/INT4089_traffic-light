@@ -1,84 +1,66 @@
-# INT4089 十字路口智能紅綠燈
+# INT4089 Smart Traffic Light
 
-這個課堂模型用六顆 LED 模擬兩條單向道交會的路口。Arduino Uno R3 控制燈號，可獨立執行固定時間循環。接上 ESP32 後，可在手機網頁輸入兩道的等候車量，或用 iPhone 拍攝模型、由 Mac 計數。Uno 會在下一次綠燈開始時，按兩道車量的差額決定綠燈時間。
+This classroom model uses six LEDs to control a crossing between two one-way roads, A and B. An Arduino Uno R3 alternates the lights and runs a fixed cycle on its own. With an ESP32 connected, the Uno can give the road with the longer queue up to 10 extra seconds of green. Enter queue lengths on a phone or use an iPhone camera and a Mac to count waiting model cars.
 
-## 檔案
+## Hardware and wiring
 
-- `arduino_uno/arduino_uno.cpp`：上傳至 Uno；同資料夾的 `TrafficController.h` 必須保留。
-- `esp32_gateway/esp32_gateway.cpp`：上傳至 ESP32。
-- [Mac 相機工具](mac_camera/README.md)：安裝 Python 依賴、選擇相機及校準等候區。
-- `tests/controller_test.cpp`：電腦上測試控制邏輯。
+Use an Arduino Uno R3, a classic ESP32-WROOM-32 development board with GPIO16 and GPIO17 available, two USB cables, jumper wires, six low-current LEDs (two each of red, yellow and green), and six 1 kΩ resistors. Check the pinout and PlatformIO board setting before using an ESP32-C3, S3, WROVER or ESP32-CAM.
 
-## 硬體假設與接線
+Disconnect power before wiring. For each LED, connect the Uno pin through its own **1 kΩ resistor** to the anode (long leg), then connect the cathode to GND. These connections assume individual low-current LEDs.
 
-目前假設 ESP32 是 **經典 ESP32-WROOM-32 開發板**，GPIO16/17 可用。如果是 ESP32-C3、S3、WROVER 或 ESP32-CAM，請先核對型號及可用腳位，不能直接沿用板型設定。
+| Road | Red LED | Yellow LED | Green LED |
+| --- | --- | --- | --- |
+| A (north–south) | D2 | D3 | D4 |
+| B (east–west) | D5 | D6 | D7 |
 
-兩條單向道交叉，只設兩組紅黃綠燈，共 **6 顆 LED、6 個電阻**。A 道與 B 道各有一組燈，車輛各自沿單一方向通過路口。
+| ESP32 | Uno | Purpose |
+| --- | --- | --- |
+| GPIO17 (TX) | D10 (RX) | One-way serial commands at 9600 baud |
+| GND | GND | Common ground |
 
-```text
-           A 道 ↓
-           [A 組燈]
-B 道 → [B 組燈] ＋ →
-                 ↓
+Power each board through its own USB cable. Keep the boards’ 5 V and 3.3 V supply pins separate. Leave Uno D11 and ESP32 GPIO16 disconnected to keep the Uno’s 5 V output away from the ESP32 GPIO. Use a short wire for the serial signal. The Uno firmware disables the internal 5 V pull-up on D10. If reception is unreliable, use a UART-compatible 3.3 V to 5 V level shifter.
+
+## Build and upload
+
+Install PlatformIO Core or the PlatformIO IDE extension for VS Code. The first build needs internet access to download the toolchains. Open the project folder containing `platformio.ini`. It defines separate Arduino firmware builds for the Uno and ESP32.
+
+From the project root, build both environments and list the connected boards:
+
+```sh
+pio run -e uno -e esp32
+pio device list
 ```
 
-| Uno 腳位 | 燈號 |
-|---|---|
-| D2 | A 道紅燈 |
-| D3 | A 道黃燈 |
-| D4 | A 道綠燈 |
-| D5 | B 道紅燈 |
-| D6 | B 道黃燈 |
-| D7 | B 道綠燈 |
+Upload the Uno firmware first and check that the LEDs cycle on their own. Then upload the gateway firmware to the ESP32. Replace each example port below with the corresponding port from `pio device list`.
 
-每條 LED 支路：Uno 腳位 → **1 kΩ 電阻** → LED 正極（長腳）→ LED 負極 → GND。每個腳位只接一顆 LED，每顆 LED 各有自己的電阻。此接法假設使用普通低電流 LED，不適用於大功率燈或未知規格紅綠燈模組。
+```sh
+pio run -e uno -t upload --upload-port /dev/cu.usbmodemXXXX
+pio run -e esp32 -t upload --upload-port /dev/cu.usbserial-XXXX
+```
 
-ESP32 與 Uno 用 **單向 UART**：
+The Uno firmware is in [arduino_uno](arduino_uno), including the timing logic in [TrafficController.h](arduino_uno/TrafficController.h). The ESP32 serves the control page and forwards commands from [esp32_gateway.cpp](esp32_gateway/esp32_gateway.cpp).
 
-| 連接 | 用途 |
-|---|---|
-| ESP32 GPIO17（TX）→ Uno D10（RX） | 車量指令 |
-| ESP32 GND ↔ Uno GND | 共地 |
-| Uno D11、ESP32 GPIO16 | 不接 |
+## Try the phone controls
 
-目前按單向直連測試：使用短線，Uno 程式已在 `gateway.begin(9600)` 後關閉 D10 的內部 5V 上拉。3.3V 訊號直連 Uno 的電壓餘裕有限，不保證所有條件下穩定；若通訊不穩定，再加入支援 UART 的 3.3V 至 5V 電平轉換器。
+1. Power both boards. Join **TrafficLight-Lab** on your phone using the password **traffic123**. Stay connected if the phone reports that the network has no internet access.
+2. Open **http://192.168.4.1**. The ESP32 also prints its address to the USB serial monitor at 115200 baud.
+3. On the Chinese-language page, enter **8** in the first field (road A) and **3** in the second (road B). Press the first button to apply the counts. Keep the page in the foreground so it can resend them every second. Press the same button again after editing either field.
+4. Watch the next green phase for each road. With these counts, A gets **20 seconds** and B gets **10 seconds**. The page confirms receipt at the ESP32. To verify the Uno’s response, watch the LEDs or check the phase and duration in its USB serial monitor at 115200 baud.
+5. Press the second button to return to fixed timing. If you close the page or disconnect, the Uno falls back to fixed timing five seconds after the last count.
 
-兩塊開發板各用一條 USB 線供電，可接同一電腦的兩個 USB 插口；兩板 GND 仍須相接。不要互接兩板的 5V 或 3.3V 供電腳。Uno D11 保持不接，不要將 Uno 的 5V 輸出直接接到 ESP32 GPIO。先斷電再接線。
+## How the timing works
 
-## 上傳及使用
+The Uno starts with both roads red for two seconds, then repeats **A green → A yellow → both red → B green → B yellow → both red**. Each yellow lasts three seconds and each all-red interval lasts two seconds.
 
-1. 先安裝 PlatformIO Core 或 VS Code 的 PlatformIO IDE 擴充套件。第一次編譯需要連上互聯網，讓 PlatformIO 下載工具鏈。
-2. 如果使用 VS Code + PlatformIO，開啟包含 `platformio.ini` 的整個專案資料夾。選 `uno` 環境編譯／上傳至 Uno；選 `esp32` 環境編譯／上傳至 ESP32。上傳時選正確連接埠，或一次只插入要上傳的板。
-3. 也可在此資料夾執行 `pio run -e uno` 或 `pio run -e esp32` 編譯；用 `pio device list` 找出兩塊板的連接埠，再加上 `-t upload --upload-port 實際連接埠` 上傳。使用其他 C++ 工具時，需設定相同開發板及 Arduino framework；不能用一般桌面 C++ 編譯器直接編譯板上程式。先單獨上傳 Uno，確認燈號循環。
-4. 按上述接線連接兩板。手機加入 Wi-Fi **TrafficLight-Lab**，密碼 **traffic123**。如手機提示沒有網絡，選擇保持連線。
-5. 在瀏覽器開啟 **http://192.168.4.1**。實際網址亦會顯示在 ESP32 的序列埠監控視窗（115200 baud）。
-6. 輸入 A 道、B 道車量並按「套用車量並持續傳送」。頁面每秒傳送一次已套用的車量；修改輸入框後要再按套用。
-7. 按「恢復固定時間循環」可停止適應車量。離開頁面或斷線後，車量資料 5 秒過期。
+Each green starts at 10 seconds. The Uno adds two seconds for each extra car waiting on that road compared with the other, up to five extra cars. Equal counts give both roads 10 seconds. The Uno chooses the duration when green begins, so new counts, expired counts and fixed-mode requests take effect at the next green.
 
-保持頁面在前景，避免手機暫停背景計時器。頁面顯示 ESP32 接收指令成功，不代表 Uno 已接收或實體 LED 已切換；請觀察 LED。Uno 序列埠監控視窗會列出階段編號及持續時間。
+## Count model cars with a camera
 
-## 控制規則
+Install the Mac dependencies while internet access is available. Close any phone page sending counts, then join **TrafficLight-Lab** on the Mac. Mount the iPhone above both queues and launch `mac_camera/Start.command`. In the preview, press **r** to select roads A and B, clear both roads and press **b** to capture the background. Add separated model cars, check the displayed counts and press **s** to send them. Press **p** to pause and request fixed timing, or **q** to quit. See the [Mac camera guide](mac_camera/README.md) for setup, calibration and troubleshooting.
 
-- 啟動：全紅 2 秒。
-- 循環：A 道綠 → A 道黃 → 全紅 → B 道綠 → B 道黃 → 全紅。
-- 黃燈 3 秒，全紅 2 秒；不會因收到車量指令而跳過。
-- 每個綠燈開始時，時間 = `10 + min(max(本方向車量 − 另一方向車量, 0), 5) × 2` 秒。
-- 例如 A 道 8 輛、B 道 3 輛：A 道綠 20 秒，B 道綠 10 秒。相同車量或沒有車，兩邊都是 10 秒。
-- 兩方向固定輪流，各自綠燈上限 20 秒，避免單邊一直等候。
-- 已開始的綠燈不會中途修改。資料過期或恢復固定模式後，**下一次**綠燈用 10 秒；現有階段正常完成。
+## ESP32 HTTP API
 
-## 用 iPhone 和 Mac 計數
-
-先在有互聯網時依照 [Mac 相機設定指南](mac_camera/README.md) 安裝依賴並確認 Mac 能讀取 iPhone 畫面。關閉持續傳送手動車量的網頁，再讓 Mac 加入 **TrafficLight-Lab**。
-
-1. 固定鏡頭，啟動 `mac_camera/Start.command`，選取 iPhone 相機。
-2. 在預覽視窗按 **R**，依次框選 A、B 道等候區。移走車和手，按 **B** 記錄空路面。
-3. 將模型車分開擺放，核對畫面的偵測框和數量，再按 **S** 傳送。Mac 比對空路面與目前畫面，因此陰影或手部也可能被計入，相連的車可能被算成一輛。
-4. 按 **P** 停止傳送並要求固定時間，按 **Q** 離開。
-
-## ESP32 車量介面
-
-手動頁面與 Mac 使用相同的表單格式。以下範例將 A 道設為 8 輛、B 道設為 3 輛。
+The phone page and Mac tool use the same endpoints. Use one sender at a time so its counts stay in effect. Both fields below accept decimal integers from 0 to 99. The field `ns` represents road A and `ew` represents road B.
 
 ```http
 POST /api/counts
@@ -87,37 +69,29 @@ Content-Type: application/x-www-form-urlencoded
 ns=8&ew=3
 ```
 
-欄位 `ns` 對應 A 道，`ew` 對應 B 道（保留原有通訊名稱）。兩個欄位只接受 0–99 整數。`POST /api/auto` 恢復固定時間。有效車量會被轉成 `C,8,3\n`，以 9600 baud 送到 Uno。請只讓一個控制頁面或辨識程式持續傳送，以免不同來源互相覆蓋。
+The gateway forwards this example to the Uno as `C,8,3\n` over UART. Send `POST /api/auto` to request fixed timing. The corresponding serial command is `A\n`. In both commands, `\n` represents a newline.
 
-## 驗證
+## Verification
 
-電腦邏輯測試：
+Run the controller tests from the project root:
 
 ```sh
 c++ -std=c++11 -Wall -Wextra -pedantic tests/controller_test.cpp -o /tmp/traffic-controller-test
 /tmp/traffic-controller-test
 ```
 
-實體測試：
-
-1. 無 ESP32 時，確認兩邊綠燈各 10 秒、黃燈 3 秒、全紅 2 秒。
-2. 傳送 A 道 8、B 道 3，確認 A 道下一次綠燈為 20 秒。
-3. 改成 A 道 1、B 道 4，確認 B 道下一次綠燈為 16 秒。
-4. 在綠燈期間改車量，確認現有綠燈時間不變。
-5. 關閉頁面，等待資料過期後，確認下一次綠燈回到 10 秒。
-6. 確認任何時候兩個方向不會同時亮綠燈。
-
-Mac 相機測試使用合成影像與本機模擬的 ESP32 服務。安裝相機依賴後，從專案根目錄執行：
+After installing the camera dependencies, run the synthetic-image and HTTP tests:
 
 ```sh
 cd mac_camera
 .venv/bin/python -m unittest discover -s tests -v
 ```
 
-## 官方參考
+On the model, check the fixed cycle with the Uno alone. Then connect the gateway and try A = 1 and B = 4. B’s next green should last 16 seconds. Change a count during green and check that the active phase runs to completion. Close the sender, wait five seconds and confirm the next green lasts 10 seconds. Throughout the cycle, only one road should show green at a time.
+
+## References
 
 - [Espressif Wi-Fi API](https://docs.espressif.com/projects/arduino-esp32/en/latest/api/wifi.html)
-- [Espressif WebServer 範例](https://github.com/espressif/arduino-esp32/blob/master/libraries/WebServer/examples/WebServer/WebServer.cpp)
+- [Espressif WebServer example](https://github.com/espressif/arduino-esp32/blob/master/libraries/WebServer/examples/WebServer/WebServer.cpp)
 - [Arduino SoftwareSerial](https://docs.arduino.cc/learn/built-in-libraries/software-serial)
-
-- [PlatformIO 來源檔案篩選設定](https://docs.platformio.org/en/stable/projectconf/sections/env/options/build/build_src_filter.html)
+- [PlatformIO source file filters](https://docs.platformio.org/en/stable/projectconf/sections/env/options/build/build_src_filter.html)
