@@ -1,7 +1,7 @@
 INT4089 Traffic Light Camera
 
-Extract the complete archive before starting. Keep the launcher, browser_camera,
-mac_camera and python folders together. The Python runtime and image-processing
+Extract the complete archive before starting. Keep the launcher with the
+browser_camera and python folders. The Python runtime and image-processing
 libraries are included.
 
 Windows x64

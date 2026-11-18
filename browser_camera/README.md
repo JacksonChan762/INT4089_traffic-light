@@ -25,7 +25,7 @@ Run these commands from the project root with CPython 3.12.
 | Linux | x86-64 or ARM64 CPython on a glibc-based distribution, such as Ubuntu or Debian. |
 | macOS | Apple Silicon or Intel CPython. The supplied OpenCV wheels require macOS 11+ on Apple Silicon or 12+ on Intel. |
 
-The browser host uses OpenCV Headless. Keep its **.venv-browser** environment separate from the optional Mac tool's GUI OpenCV environment.
+The browser host uses OpenCV Headless to process frames on the computer.
 
 **Linux or macOS**
 
@@ -80,7 +80,7 @@ The phone needs to trust the HTTPS certificate for the computer's network addres
 1. Mount the camera so both waiting areas fit in the preview. Keep the lighting and framing steady.
 2. Press **框選 A 道**, then drag across road A's waiting area. Repeat with **框選 B 道**. The rectangles must be separate.
 3. Clear both areas and press **擷取空景**. Put separated model cars back in the areas. The computer compares each frame with the empty scene and displays boxes and per-road counts. If there are false detections, adjust the difference threshold or minimum car area. If the scene moves, capture a new empty background.
-4. After three matching counts, press **開始傳送相機車量**. Keep the page in the foreground. Use one active sender across the dashboard, the ESP32's direct manual page and the optional Mac camera tool.
+4. After three matching counts, press **開始傳送相機車量**. Keep the page in the foreground. Send counts from one dashboard or ESP32 control page at a time.
 5. Press **停止傳送並恢復固定時間** to pause adaptive timing, or **關閉相機** to release the camera. If the camera or connection drops, the Uno uses its fixed cycle once five seconds have elapsed since the last valid counts. Changes take effect when the next green phase starts.
 
 The host keeps the empty background temporarily in memory. Camera frames are processed on the computer and are never forwarded to the ESP32. Move hands and shadows out of the waiting areas. Cars that touch can appear as one object.
@@ -89,7 +89,7 @@ You can use **手動輸入** in the same dashboard without opening a camera. If 
 
 ## Test the host on any platform
 
-From the project root, use the browser environment's Python to run the host integration tests.
+From the project root, use the browser environment's Python to run the detector and host integration tests.
 
 ```sh
 .venv-browser/bin/python -m unittest discover -s browser_camera/tests -v

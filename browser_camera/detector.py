@@ -1,6 +1,4 @@
-"""Counts separated foreground objects against a fixed empty-road background.
-This is a model-road experiment, not a trained car-classification model.
-"""
+"""Count separated model cars against a fixed empty-road background."""
 from dataclasses import dataclass
 import cv2
 import numpy as np
@@ -38,20 +36,3 @@ def count_objects(frame, background, roi, threshold=35, min_area=120, max_fracti
     if len(boxes) > 99:
         return Detection(0, [], False, 'Too many objects')
     return Detection(len(boxes), boxes, True)
-
-class StableCounts:
-    def __init__(self, required=3):
-        self.required = required
-        self.reset()
-    def reset(self):
-        self.last = None
-        self.repeats = 0
-    def update(self, counts):
-        if counts is None:
-            self.reset()
-            return None
-        if counts == self.last:
-            self.repeats += 1
-        else:
-            self.last, self.repeats = counts, 1
-        return counts if self.repeats >= self.required else None

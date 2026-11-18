@@ -60,13 +60,9 @@ The Uno starts with both roads red for two seconds, then repeats **A green → A
 
 Each green starts at 10 seconds. The Uno adds two seconds for each extra car waiting on that road compared with the other, up to five extra cars. Equal counts give both roads 10 seconds. The Uno chooses the duration when green begins, so new counts, expired counts and fixed-mode requests take effect at the next green.
 
-## Optional Mac camera tool
-
-Install the Mac dependencies while internet access is available. Close any phone page sending counts, then join **TrafficLight-Lab** on the Mac. Mount the iPhone above both queues and launch `mac_camera/Start.command`. In the preview, press **r** to select roads A and B, clear both roads and press **b** to capture the background. Add separated model cars, check the displayed counts and press **s** to send them. Press **p** to pause and request fixed timing, or **q** to quit. See the [Mac camera guide](mac_camera/README.md) for setup, calibration and troubleshooting.
-
 ## ESP32 HTTP API
 
-The browser dashboard, direct manual page and Mac tool use the same endpoints. Use one sender at a time so its counts stay in effect. Both fields below accept decimal integers from 0 to 99. The field `ns` represents road A and `ew` represents road B.
+The browser dashboard and direct manual page use the same endpoints. Use one sender at a time so its counts stay in effect. Both fields below accept decimal integers from 0 to 99. The field `ns` represents road A and `ew` represents road B.
 
 ```http
 POST /api/counts
@@ -86,12 +82,7 @@ c++ -std=c++11 -Wall -Wextra -pedantic tests/controller_test.cpp -o /tmp/traffic
 /tmp/traffic-controller-test
 ```
 
-After installing the camera dependencies, run the synthetic-image and HTTP tests:
-
-```sh
-cd mac_camera
-.venv/bin/python -m unittest discover -s tests -v
-```
+Run the synthetic-image and HTTP tests using the [browser camera test instructions](browser_camera/README.md#test-the-host-on-any-platform).
 
 On the model, check the fixed cycle with the Uno alone. Then connect the gateway and try A = 1 and B = 4. B’s next green should last 16 seconds. Change a count during green and check that the active phase runs to completion. Close the sender, wait five seconds and confirm the next green lasts 10 seconds. Throughout the cycle, only one road should show green at a time.
 

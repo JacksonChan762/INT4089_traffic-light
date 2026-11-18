@@ -8,7 +8,7 @@ from time import monotonic
 import cv2
 import numpy as np
 
-from mac_camera.detector import count_objects
+from .detector import count_objects
 
 
 CAMERA_ROUTES = ('/api/camera/background', '/api/camera/analyze')
