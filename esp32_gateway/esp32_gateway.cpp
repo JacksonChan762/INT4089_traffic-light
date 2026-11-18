@@ -5,6 +5,7 @@
 #include <Preferences.h>
 #include <ctype.h>
 #include <esp_mac.h>
+#include <limits.h>
 #include <string.h>
 
 // Assumes a classic ESP32-WROOM-32 development board, not ESP32-C3/S3.
@@ -14,24 +15,115 @@ WebServer server(GATEWAY_PORT);
 HardwareSerial uno(2);
 
 const char PAGE[] PROGMEM = R"HTML(
-<!doctype html><html lang="zh-Hant"><meta charset="utf-8">
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>十字路口紅綠燈</title>
-<style>body{font:18px system-ui;max-width:540px;margin:40px auto;padding:20px;background:#f1f5f9;color:#152238}input,button{font:inherit;padding:12px;margin:8px 0;box-sizing:border-box;width:100%}button{background:#155e75;color:white;border:0;border-radius:8px}label{display:block;margin-top:20px}#status{padding:16px;background:white;border-radius:8px}</style>
-<h1>十字路口紅綠燈</h1>
-<p>輸入兩道等候車量，車多的一道可延長綠燈。</p>
-<form id="form"><label>A 道等候車輛（0–99）<input id="ns" type="number" min="0" max="99" step="1" value="0" required></label>
-<label>B 道等候車輛（0–99）<input id="ew" type="number" min="0" max="99" step="1" value="0" required></label>
-<button>套用車量並持續傳送</button></form>
-<button id="auto">恢復固定時間循環</button><p id="status" role="status">尚未傳送指令</p>
-<p>綠燈 10–20 秒，黃燈 3 秒，全紅 2 秒。時間在下一次綠燈開始時更新。</p>
-<p>請保持此頁在前景。停止傳送 5 秒後，下一次綠燈使用固定 10 秒。</p>
-<small>顯示的是 ESP32 接收狀態；此版本未接收 Arduino 燈號回報。相機計數請使用電腦上的瀏覽器控制台。</small>
+<title>Traffic Light Control</title>
+<style>
+*{box-sizing:border-box}
+body{font:16px/1.5 system-ui,sans-serif;max-width:620px;margin:0 auto;padding:clamp(16px,5vw,36px);background:#f1f5f9;color:#152238}
+h1,h2{line-height:1.2;margin:0 0 12px}h2{font-size:1.25rem}
+section{margin:16px 0;padding:clamp(14px,4vw,24px);background:white;border:1px solid #d7e1e9;border-radius:12px}
+.counts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+label{display:block;font-weight:600}
+input,button{display:block;width:100%;font:inherit;padding:10px 12px;border-radius:7px;min-height:44px}
+input{border:1px solid #a6b6c3;color:inherit;margin-top:4px}
+button{margin-top:10px;background:#155e75;color:white;border:1px solid transparent;cursor:pointer}
+button.secondary{background:#edf4f7;color:#16445a;border-color:#cbdde6}
+button:focus-visible,input:focus-visible{outline:2px solid #006bae;outline-offset:2px}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:8px 4px;border-bottom:1px solid #d7e1e9}
+td,thead th:not(:first-child){text-align:right;white-space:nowrap}
+#status{margin-bottom:0;padding:10px 12px;background:#edf4f7;border-radius:7px}
+.note{color:#46596a;font-size:.92rem;margin-bottom:0}
+dl{margin-bottom:0;font-variant-numeric:tabular-nums}
+dl div{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 12px;padding:7px 0;border-top:1px solid #d7e1e9}
+dd{margin:0;font-weight:600}
+</style></head><body>
+<main>
+<h1>Traffic Light Control</h1>
+<section aria-labelledby="counts-heading">
+<h2 id="counts-heading">Waiting cars</h2>
+<form id="form">
+  <div class="counts">
+    <label>Road A<input id="ns" type="number" min="0" max="99" step="1" value="0" required></label>
+    <label>Road B<input id="ew" type="number" min="0" max="99" step="1" value="0" required></label>
+  </div>
+  <button type="submit">Apply and keep sending</button>
+</form>
+<button id="auto" type="button" class="secondary">Restore fixed timing</button>
+<p id="status" role="status">No command sent yet.</p>
+<p class="note">Keep this page in the foreground. After 5 seconds without counts, the Uno uses a 10-second duration from the next green phase.</p>
+</section>
+<section aria-labelledby="uno-heading">
+<h2 id="uno-heading">Uno State</h2>
+<button id="check-uno" type="button" class="secondary">Check Uno state</button>
+<p id="uno-status" role="status">Check the Uno for its current signal phase.</p>
+<dl id="uno-details" hidden>
+  <div><dt>Current phase</dt><dd id="uno-phase"></dd></div>
+  <div><dt>Phase duration</dt><dd id="uno-duration"></dd></div>
+  <div><dt>Time remaining</dt><dd id="uno-remaining"></dd></div>
+  <div><dt>Next green</dt><dd id="uno-counts"></dd></div>
+</dl>
+</section>
+<section aria-labelledby="timing-heading">
+<h2 id="timing-heading">Planned signal timing</h2>
+<p id="plan-source">Based on the entered counts.</p>
+<table>
+  <thead><tr><th scope="col">Road</th><th scope="col">Green</th><th scope="col">Yellow</th><th scope="col">Red</th></tr></thead>
+  <tbody>
+    <tr><th scope="row">A</th><td id="green-a">10 s</td><td id="yellow-a">3 s</td><td id="red-a">17 s</td></tr>
+    <tr><th scope="row">B</th><td id="green-b">10 s</td><td id="yellow-b">3 s</td><td id="red-b">17 s</td></tr>
+  </tbody>
+</table>
+<p class="note">Both roads are red for 2 seconds after each yellow. The Uno sets each green duration when that phase begins.</p>
+<p class="note">Check the Uno State above for actual phase times.</p>
+</section>
+</main>
 <script>
-const output = document.querySelector('#status');
+const form = document.getElementById('form');
+const roadA = document.getElementById('ns');
+const roadB = document.getElementById('ew');
+const output = document.getElementById('status');
+const planSource = document.getElementById('plan-source');
+const checkUno = document.getElementById('check-uno');
+const unoStatus = document.getElementById('uno-status');
+const unoDetails = document.getElementById('uno-details');
+const phases = ['All red before Road A', 'Road A green', 'Road A yellow',
+  'All red before Road B', 'Road B green', 'Road B yellow'];
+const yellowSeconds = 3;
+const allRedSeconds = 2;
 let counts = null, busy = false, fixedPending = false, revision = 0;
+let monitoringUno = false, unoRequest = null;
+
+function selectedCounts() {
+  if (!roadA.validity.valid || !roadB.validity.valid) return null;
+  return {ns: roadA.valueAsNumber, ew: roadB.valueAsNumber};
+}
+
+function greenSeconds(ownCount, otherCount) {
+  return 10 + 2 * Math.min(5, Math.max(0, ownCount - otherCount));
+}
+
+function showPlan(selection, fixed = false) {
+  const greenA = selection ? greenSeconds(selection.ns, selection.ew) : null;
+  const greenB = selection ? greenSeconds(selection.ew, selection.ns) : null;
+  const redOffset = yellowSeconds + 2 * allRedSeconds;
+  const duration = {
+    'green-a': greenA, 'green-b': greenB,
+    'yellow-a': yellowSeconds, 'yellow-b': yellowSeconds,
+    'red-a': selection ? greenB + redOffset : null,
+    'red-b': selection ? greenA + redOffset : null,
+  };
+  for (const [id, seconds] of Object.entries(duration)) {
+    document.getElementById(id).textContent = seconds === null ? '—' : seconds + ' s';
+  }
+  planSource.textContent = fixed ? 'Fixed timing preview.' : selection ? 'Based on the entered counts.' :
+    'Enter a whole number from 0 to 99 for each road to preview timing.';
+}
+
 async function heartbeat() {
-  if (busy || (!fixedPending && (!counts || document.hidden))) return;
+  if (busy || unoRequest || (!fixedPending && (!counts || document.hidden))) return;
   const currentRevision = revision;
   const pendingCounts = counts;
   const sendFixed = fixedPending;
@@ -46,32 +138,94 @@ async function heartbeat() {
       signal: controller.signal,
     });
     if (!response.ok) throw Error(await response.text());
-    if (currentRevision === revision) output.textContent = sendFixed ? 'ESP32 已接收固定時間模式要求' :
-      'ESP32 已接收車量：A 道 ' + pendingCounts.ns + '、B 道 ' + pendingCounts.ew;
+    if (currentRevision === revision) output.textContent = sendFixed ? 'ESP32 received the fixed timing request.' :
+      'ESP32 received the counts. Road A: ' + pendingCounts.ns + ', Road B: ' + pendingCounts.ew + '.';
   } catch (error) {
-    if (currentRevision === revision) output.textContent = '傳送失敗，請檢查 Wi-Fi：' + error.message;
+    if (currentRevision === revision) output.textContent = 'Could not send the command. Check the Wi-Fi connection. ' + error.message;
   } finally {
     clearTimeout(timer);
     busy = false;
     if (currentRevision !== revision) void heartbeat();
   }
 }
-document.querySelector('#form').onsubmit = event => {
+
+function showUnoStatus(message, available = false) {
+  if (unoStatus.textContent !== message) unoStatus.textContent = message;
+  unoDetails.hidden = !available;
+}
+
+async function refreshUnoState() {
+  if (!monitoringUno || document.hidden || busy || unoRequest) return;
+  const currentRevision = revision;
+  const controller = new AbortController();
+  unoRequest = controller;
+  const timer = setTimeout(() => controller.abort(), 1000);
+  try {
+    const response = await fetch('/api/state', {cache: 'no-store', signal: controller.signal});
+    if (!response.ok) throw Error();
+    const state = await response.json();
+    if (!state.available || !phases[state.phase]) throw Error();
+    if (!monitoringUno || document.hidden || controller.signal.aborted) return;
+    document.getElementById('uno-phase').textContent = phases[state.phase];
+    document.getElementById('uno-duration').textContent = state.duration_ms / 1000 + ' s';
+    document.getElementById('uno-remaining').textContent = (Math.ceil(state.remaining_ms / 100) / 10).toFixed(1) + ' s';
+    document.getElementById('uno-counts').textContent = state.counts_fresh ?
+      'Road A: ' + state.ns + ', Road B: ' + state.ew : 'Fixed timing';
+    showUnoStatus('Live from the Uno.', true);
+  } catch (error) {
+    if (monitoringUno && !document.hidden) showUnoStatus('Uno state unavailable. Check the serial connection to the Uno.');
+  } finally {
+    clearTimeout(timer);
+    unoRequest = null;
+    if (currentRevision !== revision) void heartbeat();
+  }
+}
+
+async function tick() {
+  await heartbeat();
+  await refreshUnoState();
+}
+
+form.addEventListener('input', () => showPlan(selectedCounts()));
+form.onsubmit = event => {
   event.preventDefault();
-  counts = {ns: document.querySelector('#ns').valueAsNumber, ew: document.querySelector('#ew').valueAsNumber};
+  const selection = selectedCounts();
+  if (!selection) return;
+  counts = selection;
+  showPlan(counts);
   fixedPending = false;
   revision++;
   void heartbeat();
 };
-document.querySelector('#auto').onclick = () => {
+document.getElementById('auto').onclick = () => {
   counts = null;
+  showPlan({ns: 0, ew: 0}, true);
   fixedPending = true;
   revision++;
   void heartbeat();
 };
-document.addEventListener('visibilitychange', heartbeat);
-setInterval(heartbeat, 1000);
-</script></html>)HTML";
+checkUno.onclick = () => {
+  monitoringUno = !monitoringUno;
+  checkUno.textContent = monitoringUno ? 'Stop checking Uno state' : 'Check Uno state';
+  if (monitoringUno) {
+    showUnoStatus('Checking Uno state…');
+    void refreshUnoState();
+  } else {
+    unoRequest?.abort();
+    showUnoStatus('Uno state check stopped.');
+  }
+};
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    unoRequest?.abort();
+  } else if (monitoringUno) {
+    showUnoStatus('Checking Uno state…');
+  }
+  void tick();
+});
+setInterval(tick, 1000);
+showPlan(selectedCounts());
+</script></body></html>)HTML";
 
 bool readCount(const String &s, unsigned &value) {
   if (s.length() == 0 || s.length() > 2) return false;
@@ -82,6 +236,71 @@ bool readCount(const String &s, unsigned &value) {
   }
   return value <= 99;
 }
+
+struct UnoState {
+  unsigned phase;
+  unsigned durationMs;
+  unsigned remainingMs;
+  unsigned countsFresh;
+  unsigned ns;
+  unsigned ew;
+};
+
+bool readStateField(const char *&cursor, unsigned maximum, unsigned &value) {
+  if (*cursor++ != ',' || *cursor < '0' || *cursor > '9') return false;
+  value = 0;
+  do {
+    const unsigned digit = *cursor++ - '0';
+    if (value > maximum / 10 || (value == maximum / 10 && digit > maximum % 10)) return false;
+    value = value * 10 + digit;
+  } while (*cursor >= '0' && *cursor <= '9');
+  return true;
+}
+
+bool parseUnoState(const char *line, UnoState &state) {
+  const char *cursor = line + 1;
+  return line[0] == 'S' && readStateField(cursor, 5, state.phase) &&
+    readStateField(cursor, UINT_MAX, state.durationMs) && state.durationMs > 0 &&
+    readStateField(cursor, state.durationMs, state.remainingMs) &&
+    readStateField(cursor, 1, state.countsFresh) && readStateField(cursor, 99, state.ns) &&
+    readStateField(cursor, 99, state.ew) && *cursor == '\0';
+}
+
+bool requestUnoState(UnoState &state) {
+  constexpr size_t MAX_STALE_BYTES = 256;
+  constexpr unsigned long REPLY_TIMEOUT_MS = 220;
+  for (size_t skipped = 0; skipped < MAX_STALE_BYTES && uno.available(); ++skipped) {
+    uno.read();
+  }
+  if (uno.available() || uno.print("S\n") != 2) return false;
+
+  char line[48];
+  size_t used = 0;
+  bool invalid = false;
+  const unsigned long started = millis();
+  while (millis() - started < REPLY_TIMEOUT_MS) {
+    const int input = uno.read();
+    if (input < 0) {
+      delay(1);
+    } else if (input == '\n') {
+      if (!invalid) {
+        if (used > 0 && line[used - 1] == '\r') --used;
+        line[used] = '\0';
+        if (parseUnoState(line, state)) return true;
+      }
+      used = 0;
+      invalid = false;
+    } else if (!invalid) {
+      if (used == sizeof(line) - 1 || (input < 32 && input != '\r') || input > 126) {
+        invalid = true;
+      } else {
+        line[used++] = static_cast<char>(input);
+      }
+    }
+  }
+  return false;
+}
+
 constexpr char WIFI_NAMESPACE[] = "traffic-wifi";
 constexpr char WIFI_KEY[] = "credentials";
 constexpr unsigned long WIFI_RETRY_MS = 30000;
@@ -286,7 +505,8 @@ void startWifi() {
 
 void setup() {
   Serial.begin(115200);
-  uno.begin(9600, SERIAL_8N1, 16, 17); // RX unused; TX GPIO17 -> Uno D10.
+  // RX GPIO16 from Uno D11 through level shifter; TX GPIO17 to Uno D10.
+  uno.begin(9600, SERIAL_8N1, 16, 17);
   initializeGatewayIdentity();
   server.on("/", HTTP_GET, []() { server.send_P(200, "text/html; charset=utf-8", PAGE); });
   server.on("/api/gateway", HTTP_GET, []() {
@@ -298,6 +518,19 @@ void setup() {
     char body[96];
     snprintf(body, sizeof(body), "{\"id\":\"%s\",\"service\":\"int4089-traffic-light\",\"version\":%u}",
              gatewayId, GATEWAY_VERSION);
+    server.send(200, "application/json", body);
+  });
+  server.on("/api/state", HTTP_GET, []() {
+    server.sendHeader("Cache-Control", "no-store");
+    UnoState state{};
+    if (!requestUnoState(state)) {
+      server.send(503, "application/json", "{\"available\":false}");
+      return;
+    }
+    char body[160];
+    snprintf(body, sizeof(body), "{\"available\":true,\"phase\":%u,\"duration_ms\":%u,\"remaining_ms\":%u,"
+      "\"counts_fresh\":%s,\"ns\":%u,\"ew\":%u}", state.phase, state.durationMs, state.remainingMs,
+      state.countsFresh ? "true" : "false", state.ns, state.ew);
     server.send(200, "application/json", body);
   });
   server.on("/api/counts", HTTP_POST, []() {

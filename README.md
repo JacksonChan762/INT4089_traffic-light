@@ -31,24 +31,26 @@ Disconnect power before wiring. For each LED, connect the Uno pin through its ow
 
 | ESP32 | Uno | Purpose |
 | --- | --- | --- |
-| GPIO17 (TX) | D10 (RX) | One-way serial commands at 9600 baud |
+| GPIO17 (TX) | D10 (RX) | Control commands at 9600 baud |
 | GND | GND | Common ground |
 
-Power each board through its own USB cable. Keep the boards’ 5 V and 3.3 V rails separate. Leave Uno D11 and ESP32 GPIO16 disconnected. A short direct wire can be used for initial bench tests. The Uno firmware disables the internal 5 V pull-up on D10.
+Power each board through its own USB cable. Keep the boards’ 5 V and 3.3 V rails separate. For one-way control, leave Uno D11 and ESP32 GPIO16 unconnected. A short direct wire from GPIO17 to D10 can be used for initial bench tests. The Uno firmware disables the internal 5 V pull-up on D10.
 
-### Add a UART level shifter
+### Add a UART level shifter for Uno State
 
-Use a non-inverting level shifter that supports 3.3 V and 5 V push-pull UART signals. Disconnect USB power from both boards and remove the direct GPIO17-to-D10 jumper before inserting the shifter.
+Use a non-inverting level shifter with two channels that support 3.3 V and 5 V push-pull UART in opposite directions at the same time. Disconnect USB power from both boards and remove the direct GPIO17-to-D10 jumper before inserting the shifter.
 
 | Source | Destination |
 | --- | --- |
 | ESP32 **3V3** | Shifter low-voltage supply (`LV` on a module with LV and HV labels) |
 | Uno **5V** | Shifter high-voltage supply (`HV` on a module with LV and HV labels) |
 | ESP32 GND and Uno GND | Shifter GND, all on the same ground junction |
-| ESP32 **GPIO17 TX** | Input on one 3.3 V channel |
-| Matching 5 V output channel | Uno **D10 RX** |
+| ESP32 **GPIO17 TX** | Channel 1 low-voltage input |
+| Channel 1 high-voltage output | Uno **D10 RX** |
+| Uno **D11 TX** | Channel 2 high-voltage input |
+| Channel 2 low-voltage output | ESP32 **GPIO16 RX** |
 
-Check the module’s pinout before applying power. On a shifter with direction or enable pins, set the channel to send from the 3.3 V input to the 5 V output and enable it according to the module’s datasheet. Leave Uno D11 and ESP32 GPIO16 disconnected.
+Check the module’s pinout before applying power. For a module with direction and enable pins, configure channel 1 for 3.3 V to 5 V and channel 2 for 5 V to 3.3 V, then enable both according to the module’s datasheet. The return signal from Uno D11 must pass through the shifter before it reaches ESP32 GPIO16.
 
 ## Build and upload
 
@@ -82,9 +84,10 @@ In the v1.1.0 launcher, connect the ESP32 over USB, close any serial monitor, an
 
 1. Power both boards. Configure the ESP32 over USB to join the router's 2.4 GHz Wi-Fi, and connect the browser device to the same router. [USB Wi-Fi setup](browser_camera/README.md#join-the-computers-network)
 2. Open the `http://` address printed by the ESP32's USB serial monitor at 115200 baud.
-3. On the Chinese-language page, enter **8** in the first field (road A) and **3** in the second (road B). Press the first button to apply the counts. Keep the page in the foreground so it can resend them every second. Press the same button again after editing either field.
-4. Watch the next green phase for each road. With these counts, A gets **20 seconds** and B gets **10 seconds**. The page confirms receipt at the ESP32. To verify the Uno’s response, watch the LEDs or check the phase and duration in its USB serial monitor at 115200 baud.
-5. Press the second button to return to fixed timing. If you close the page or disconnect, the Uno falls back to fixed timing five seconds after the last count.
+3. Enter **8** for **Road A** and **3** for **Road B**, then press **Apply and keep sending**. Keep the page in the foreground so it can resend the counts every second. Press the same button again after editing either field.
+4. **Planned signal timing** shows the expected red, yellow, and green durations. In this example, the next A green is **20 seconds** and the next B green is **10 seconds**. The ESP32’s send confirmation indicates receipt at the gateway.
+5. With both boards running the updated firmware and wired through the level shifter, select **Check Uno state** under **Uno State**. The latest reply shows the current phase, its total duration and the time remaining, along with fresh counts or fixed timing for the next green. The page checks periodically while visible. Select **Stop checking Uno state** to stop. If the state is unavailable, inspect the Uno D11-to-ESP32 GPIO16 return path and the common ground. With one-way wiring you can still check the phase and duration in the Uno’s USB serial monitor at 115200 baud.
+6. Press **Restore fixed timing** to return to fixed timing. If you close the page or disconnect, the Uno falls back to fixed timing five seconds after the last count.
 
 ## How the timing works
 
@@ -104,6 +107,8 @@ ns=8&ew=3
 ```
 
 The gateway forwards this example to the Uno as `C,8,3\n` over UART. Send `POST /api/auto` to request fixed timing. The corresponding serial command is `A\n`. In both commands, `\n` represents a newline.
+
+Send `GET /api/state` to query the Uno on demand. A successful JSON response includes `available`, `phase`, `duration_ms`, `remaining_ms`, `counts_fresh`, `ns` and `ew`. Phase values 0 through 5 follow the cycle, starting with all red before A green. Counts are eligible to determine the next green duration while `counts_fresh` is true. The endpoint returns HTTP 503 if the Uno does not send a valid reply.
 
 ## Verification
 

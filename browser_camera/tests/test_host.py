@@ -75,7 +75,7 @@ class BrowserHostTests(unittest.TestCase):
             return response.status, response.read()
 
     def test_serves_camera_dashboard(self):
-        for path in ('/', '/app.js', '/styles.css'):
+        for path in ('/', '/app.js', '/styles.css', '/traffic-test'):
             with self.subTest(path=path):
                 code, body = self.request('GET', path)
                 self.assertEqual(code, 200)

@@ -110,6 +110,15 @@ The host keeps the empty background temporarily in memory. Camera frames are pro
 
 You can use **手動輸入** in the same dashboard without opening a camera. If no computer is available, use the [ESP32 fallback manual page](../README.md#try-the-direct-manual-controls).
 
+## Test the camera with cars at traffic lights
+
+1. Select **開啟車流測試場（新分頁）** on the dashboard. You can also open `browser_camera/traffic_test.html` directly on another device. Put the test page on a display that the camera can see and use **Expand view** before calibrating if you need a larger image.
+2. With both roads empty, open the camera on the dashboard and frame both marked waiting areas. Select each area separately, keeping the signal lamps outside both selections. Click **擷取空景**, then keep the camera and display fixed.
+3. Set the car counts for roads A and B and click **Queue cars**. Both lights stay red and the cars remain still. Compare the dashboard readings with the selected counts in this mode.
+4. Click **Start signal cycle** to let cars move and use **Speed** to adjust how fast they drive. Click **Hold red** to return to the stationary queues, or **Clear roads** to restore the empty scene for calibration.
+
+The simulator shows the planned **Red**, **Yellow**, and **Green** durations for each road, plus the current phase and its countdown during the cycle. Each green has a base duration of 10 seconds. The road with more cars gets 2 extra seconds per additional car, up to a total of 20 seconds. Each yellow lasts 3 seconds, followed by 2 seconds with both lights red. The simulator sets each green's duration when that phase starts. These times describe the simulation in the browser.
+
 ## Test the host on any platform
 
 From the project root, use the browser environment's Python to run the detector and host integration tests.

@@ -21,9 +21,15 @@ ASSETS = {
     '/': ('index.html', 'text/html; charset=utf-8'),
     '/app.js': ('app.js', 'text/javascript; charset=utf-8'),
     '/styles.css': ('styles.css', 'text/css; charset=utf-8'),
+    '/traffic-test': ('traffic_test.html', 'text/html; charset=utf-8'),
 }
 ASSET_DIRECTORY = Path(__file__).resolve().parent
 GATEWAY_ROUTES = ('/api/counts', '/api/auto')
+DOCUMENT_RESTRICTIONS = "object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'"
+CAMERA_CSP = f"default-src 'self'; media-src 'self' blob:; {DOCUMENT_RESTRICTIONS}"
+# The standalone simulator uses inline code and runs with an isolated origin.
+TRAFFIC_TEST_CSP = ("default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; "
+                    f"img-src data:; sandbox allow-scripts; {DOCUMENT_RESTRICTIONS}")
 
 
 def gateway_address(url):
@@ -62,7 +68,7 @@ class CameraHandler(BaseHTTPRequestHandler):
         if self.path not in CAMERA_ROUTES or str(code) not in ('200', '409'):
             super().log_request(code, size)
 
-    def reply(self, code, body, content_type='text/plain; charset=utf-8'):
+    def reply(self, code, body, content_type='text/plain; charset=utf-8', *, csp=CAMERA_CSP):
         self.send_response(code)
         self.send_header('Content-Type', content_type)
         self.send_header('Content-Length', str(len(body)))
@@ -70,9 +76,7 @@ class CameraHandler(BaseHTTPRequestHandler):
         self.send_header('X-Content-Type-Options', 'nosniff')
         self.send_header('Permissions-Policy', 'camera=(self), microphone=()')
         self.send_header('Referrer-Policy', 'same-origin')
-        self.send_header('Content-Security-Policy',
-                         "default-src 'self'; media-src 'self' blob:; object-src 'none'; "
-                         "base-uri 'none'; frame-ancestors 'none'; form-action 'none'")
+        self.send_header('Content-Security-Policy', csp)
         self.end_headers()
         self.wfile.write(body)
 
@@ -103,7 +107,8 @@ class CameraHandler(BaseHTTPRequestHandler):
         except OSError:
             self.reply(500, b'Browser camera asset is missing')
             return
-        self.reply(200, body, content_type)
+        csp = TRAFFIC_TEST_CSP if self.path == '/traffic-test' else CAMERA_CSP
+        self.reply(200, body, content_type, csp=csp)
 
     def do_POST(self):
         camera_route = self.path in CAMERA_ROUTES
