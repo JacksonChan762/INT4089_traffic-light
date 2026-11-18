@@ -72,6 +72,7 @@ def stage_app(bundle, target):
         shutil.copy2(ROOT / name, destination)
     shutil.copy2(SUPPORT / 'launch.py', bundle / 'launch.py')
     shutil.copy2(SUPPORT / 'README.txt', bundle / 'README.txt')
+    shutil.copy2(ROOT / 'LICENSE', bundle / 'LICENSE')
     if target == 'windows-x64':
         (bundle / 'Start.cmd').write_text(WINDOWS_START, encoding='ascii', newline='\r\n')
     else:
