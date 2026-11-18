@@ -7,7 +7,7 @@ The dashboard runs on a Mac, Linux PC or Windows PC. Open the dashboard on the d
 ## Join the computer's network
 
 1. Update the ESP32 using the [build and upload instructions](../README.md#build-and-upload). Connect the computer to an existing Wi-Fi router. The router must offer **2.4 GHz Wi-Fi** for the ESP32 and let devices on its local network communicate.
-2. Connect the ESP32 by USB and close any open serial monitor. Open `Start.command` on macOS, `Start.cmd` on Windows, or `./start.sh` on Linux from the v1.1.0 package.
+2. Connect the ESP32 by USB and close any open serial monitor. Open `Start.command` on macOS, `Start.cmd` on Windows, or `./start.sh` on Linux from the v1.2.0 package.
 3. At the launcher prompt, type `W` and press Enter. Select the ESP32's serial port if more than one port is listed. Enter the router's 2.4 GHz Wi-Fi name (SSID) and password. The password stays hidden as you type, and the launcher sends the credentials to the board over USB.
 4. The ESP32 saves the settings and restarts. The launcher opens the computer dashboard and discovers the board when it joins the router. Once configured, press Enter at the launcher prompt to start the computer camera dashboard. For phone camera access, enter the computer's LAN IPv4 address at launch. [Phone camera setup](#use-a-phone-camera-in-the-browser)
 
@@ -32,9 +32,9 @@ The dashboard remembers the chosen device during the session and finds it again 
 
 ## Portable packages
 
-Use the archive for your operating system and processor. Extract the whole archive and open the supplied launcher. Its bundled Python and OpenCV run on the computer. In the v1.1.0 launcher, type `W` at the launcher prompt for USB Wi-Fi setup, press Enter for the computer camera, or enter the computer's LAN IPv4 address and provide the trusted certificate and key for a phone camera. Both camera modes discover ESP32 gateways automatically. [Package instructions](packaging/README.txt)
+Use the archive for your operating system and processor. Extract the whole archive and open the supplied launcher. Its bundled Python and OpenCV run on the computer. In the v1.2.0 launcher, type `W` at the launcher prompt for USB Wi-Fi setup, press Enter for the computer camera, or enter the computer's LAN IPv4 address and provide the trusted certificate and key for a phone camera. Both camera modes discover ESP32 gateways automatically. [Package instructions](packaging/README.txt)
 
-Download v1.1.0 for your operating system and processor. [Release downloads](../README.md#download-the-browser-camera-app)
+Download v1.2.0 for your operating system and processor. [Release downloads](../README.md#download-the-browser-camera-app)
 
 To build the five archives from source, run `python3.12 browser_camera/packaging/build.py` from the project root with Python 3.12 and pip. The archives and SHA-256 checksums appear under `dist/`.
 
