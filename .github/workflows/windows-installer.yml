@@ -1,0 +1,87 @@
+name: Windows installer
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Published release tag containing the Windows ZIP and SHA256SUMS.txt
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  setup:
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Verify the portable package and build the installer
+        id: installer
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TRAFFIC_RELEASE_TAG: ${{ inputs.release_tag }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tag = $env:TRAFFIC_RELEASE_TAG
+          if ($tag -cnotmatch '^v[0-9]+\.[0-9]+\.[0-9]+$') {
+            throw 'Expected a stable release tag such as v1.2.1.'
+          }
+
+          $work = Join-Path $env:RUNNER_TEMP 'traffic-installer'
+          $archiveName = 'TrafficLight-Camera-windows-x64.zip'
+          $portable = Join-Path $work 'portable'
+          $output = Join-Path $work 'setup'
+          New-Item -ItemType Directory -Path $work, $output | Out-Null
+          gh release download $tag --repo $env:GITHUB_REPOSITORY --dir $work --pattern $archiveName --pattern SHA256SUMS.txt
+          if ($LASTEXITCODE -ne 0) { throw 'Release download failed.' }
+
+          $archive = Join-Path $work $archiveName
+          $checksumLine = '^[a-f0-9]{64}  ' + [regex]::Escape($archiveName) + '$'
+          $matchesForArchive = @(Get-Content (Join-Path $work 'SHA256SUMS.txt') | Where-Object { $_ -cmatch $checksumLine })
+          if ($matchesForArchive.Count -ne 1) { throw 'Missing or ambiguous Windows archive checksum.' }
+          if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant() -cne $matchesForArchive[0].Substring(0, 64)) {
+            throw 'The Windows ZIP does not match its published checksum.'
+          }
+          Expand-Archive -LiteralPath $archive -DestinationPath $portable
+          $package = Join-Path $portable 'TrafficLight-Camera-windows-x64'
+          foreach ($name in @('Start.cmd', 'launch.py', 'python\python.exe', 'browser_camera\index.html')) {
+            if (-not (Test-Path -LiteralPath (Join-Path $package $name) -PathType Leaf)) {
+              throw "Missing package file: $name"
+            }
+          }
+
+          $compiler = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path -LiteralPath $compiler -PathType Leaf)) {
+            $compiler = (Get-Command ISCC.exe -ErrorAction Stop).Source
+          }
+          $recipe = Join-Path $env:GITHUB_WORKSPACE 'browser_camera\packaging\windows-installer.iss'
+          & $compiler "/DPackageDir=$package" "/DOutputDir=$output" "/DAppVersion=$($tag.Substring(1))" $recipe
+          if ($LASTEXITCODE -ne 0) { throw 'Inno Setup compilation failed.' }
+
+          $name = 'TrafficLight-Camera-windows-x64-setup.exe'
+          $exe = Join-Path $output $name
+          $manifest = "$exe.sha256"
+          $hash = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $name" | Set-Content -LiteralPath $manifest -Encoding ascii
+          "exe=$exe" >> $env:GITHUB_OUTPUT
+          "manifest=$manifest" >> $env:GITHUB_OUTPUT
+
+      - name: Test install, dashboard startup and uninstall on Windows
+        shell: pwsh
+        env:
+          TRAFFIC_INSTALLER: ${{ steps.installer.outputs.exe }}
+        run: ./browser_camera/packaging/test-windows-installer.ps1 -Installer $env:TRAFFIC_INSTALLER
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: traffic-light-windows-installer
+          path: |
+            ${{ steps.installer.outputs.exe }}
+            ${{ steps.installer.outputs.manifest }}
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
