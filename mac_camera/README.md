@@ -1,5 +1,7 @@
 # Count model cars with an iPhone and a Mac
 
+For macOS, Linux or Windows with a computer or phone camera, see the [browser dashboard](../browser_camera/README.md).
+
 The iPhone supplies an overhead view of the intersection. The Mac compares each road’s waiting area with an image of the empty road, counts the objects and sends the two totals to the ESP32 over Wi-Fi. Video frames stay on the Mac. The tool works with the firmware in the [main project](../README.md).
 
 ## Connect the iPhone camera

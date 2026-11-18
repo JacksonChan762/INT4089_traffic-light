@@ -1,6 +1,6 @@
 # INT4089 Smart Traffic Light
 
-This classroom model uses six LEDs to control a crossing between two one-way roads, A and B. An Arduino Uno R3 alternates the lights and runs a fixed cycle on its own. With an ESP32 connected, the Uno can give the road with the longer queue up to 10 extra seconds of green. Enter queue lengths on a phone or use an iPhone camera and a Mac to count waiting model cars.
+This classroom model uses six LEDs to control a crossing between two one-way roads, A and B. An Arduino Uno R3 alternates the lights and runs a fixed cycle on its own. With an ESP32 connected, the Uno can give the road with the longer queue up to 10 extra seconds of green. Enter queue lengths manually, or run the browser dashboard on a computer to count model cars using a computer webcam or a phone camera.
 
 ## Hardware and wiring
 
@@ -38,9 +38,15 @@ pio run -e uno -t upload --upload-port /dev/cu.usbmodemXXXX
 pio run -e esp32 -t upload --upload-port /dev/cu.usbserial-XXXX
 ```
 
-The Uno firmware is in [arduino_uno](arduino_uno), including the timing logic in [TrafficController.h](arduino_uno/TrafficController.h). The ESP32 serves the control page and forwards commands from [esp32_gateway.cpp](esp32_gateway/esp32_gateway.cpp).
+The Uno firmware is in [arduino_uno](arduino_uno), including the timing logic in [TrafficController.h](arduino_uno/TrafficController.h). The ESP32 can join the computer's Wi-Fi network, serves a fallback manual page and forwards commands from [esp32_gateway.cpp](esp32_gateway/esp32_gateway.cpp).
 
-## Try the phone controls
+Serial port names vary by host. Use the actual COM port on Windows or the actual `/dev/ttyUSB*` or `/dev/ttyACM*` port on Linux.
+
+## Use the browser dashboard
+
+Run the dashboard on a Mac, Linux PC or Windows PC. The ESP32 joins the computer's Wi-Fi hotspot or a shared router. Open the dashboard on the computer to use its built-in or USB camera, or open the computer's HTTPS address on an Android phone or iPhone to use the phone camera. The computer processes the images and sends the counts to the ESP32. See the [browser camera setup and calibration guide](browser_camera/README.md).
+
+## Try the direct manual controls
 
 1. Power both boards. Join **TrafficLight-Lab** on your phone using the password **traffic123**. Stay connected if the phone reports that the network has no internet access.
 2. Open **http://192.168.4.1**. The ESP32 also prints its address to the USB serial monitor at 115200 baud.
@@ -54,13 +60,13 @@ The Uno starts with both roads red for two seconds, then repeats **A green → A
 
 Each green starts at 10 seconds. The Uno adds two seconds for each extra car waiting on that road compared with the other, up to five extra cars. Equal counts give both roads 10 seconds. The Uno chooses the duration when green begins, so new counts, expired counts and fixed-mode requests take effect at the next green.
 
-## Count model cars with a camera
+## Optional Mac camera tool
 
 Install the Mac dependencies while internet access is available. Close any phone page sending counts, then join **TrafficLight-Lab** on the Mac. Mount the iPhone above both queues and launch `mac_camera/Start.command`. In the preview, press **r** to select roads A and B, clear both roads and press **b** to capture the background. Add separated model cars, check the displayed counts and press **s** to send them. Press **p** to pause and request fixed timing, or **q** to quit. See the [Mac camera guide](mac_camera/README.md) for setup, calibration and troubleshooting.
 
 ## ESP32 HTTP API
 
-The phone page and Mac tool use the same endpoints. Use one sender at a time so its counts stay in effect. Both fields below accept decimal integers from 0 to 99. The field `ns` represents road A and `ew` represents road B.
+The browser dashboard, direct manual page and Mac tool use the same endpoints. Use one sender at a time so its counts stay in effect. Both fields below accept decimal integers from 0 to 99. The field `ns` represents road A and `ew` represents road B.
 
 ```http
 POST /api/counts

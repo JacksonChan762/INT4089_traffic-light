@@ -1,0 +1,24 @@
+name: Browser camera
+
+on: [push, pull_request, workflow_dispatch]
+
+permissions:
+  contents: read
+
+jobs:
+  camera:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2025, ubuntu-24.04, ubuntu-24.04-arm, macos-15, macos-15-intel]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: browser_camera/requirements.txt
+      - run: python -m pip install --only-binary=:all: -r browser_camera/requirements.txt
+      - run: python -m unittest discover -s browser_camera/tests -v

@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>十字路口紅綠燈</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <header class="title">
+    <h1>十字路口紅綠燈</h1>
+    <p>車多的道路可延長綠燈。設定會在下一次綠燈開始時生效。</p>
+  </header>
+  <main>
+    <section aria-labelledby="camera-title">
+      <h2 id="camera-title">相機計數</h2>
+      <p>使用開啟此頁的裝置上可用的相機。車輛計數由電腦處理。</p>
+      <div class="controls">
+        <label for="camera-source">相機</label>
+        <select id="camera-source">
+          <option value="">自動選擇（優先後鏡頭）</option>
+        </select>
+        <button id="start-camera">開啟相機</button>
+        <button id="stop-camera" class="secondary" disabled>關閉相機</button>
+      </div>
+      <div id="stage" class="stage" hidden>
+        <video id="video" autoplay muted playsinline aria-label="相機預覽"></video>
+        <canvas id="preview" aria-label="拖曳框選車道"></canvas>
+      </div>
+      <p>固定相機後，按 A、B 按鈕並分別拖曳框選等候區。清空兩區，再擷取空景。放回分開的模型車，確認車數後開始傳送。</p>
+      <div class="controls">
+        <button id="select-a" class="secondary" disabled>框選 A 道</button>
+        <button id="select-b" class="secondary" disabled>框選 B 道</button>
+        <button id="capture-background" class="secondary" disabled>擷取空景</button>
+      </div>
+      <div class="counts" aria-label="相機辨識車量">
+        <div class="road-a">A 道 <output id="count-a">—</output></div>
+        <div class="road-b">B 道 <output id="count-b">—</output></div>
+      </div>
+      <details>
+        <summary>辨識調校</summary>
+        <div class="settings">
+          <label>影像差異門檻 <input id="threshold" type="number" value="35" min="1" max="255" step="1"></label>
+          <label>模型車最小面積（像素） <input id="min-area" type="number" value="120" min="1" max="20000" step="1"></label>
+        </div>
+      </details>
+      <p id="camera-status" role="status">開啟相機後，允許瀏覽器取用鏡頭。</p>
+      <button id="send-camera" disabled>開始傳送相機車量</button>
+    </section>
+    <aside>
+      <section aria-labelledby="manual-title">
+        <h2 id="manual-title">手動輸入</h2>
+        <form id="manual-form">
+          <div class="settings">
+            <label>A 道車量 <input id="ns" type="number" min="0" max="99" step="1" value="0" required></label>
+            <label>B 道車量 <input id="ew" type="number" min="0" max="99" step="1" value="0" required></label>
+          </div>
+          <button>套用並持續傳送</button>
+        </form>
+      </section>
+      <section aria-labelledby="signal-title">
+        <h2 id="signal-title">燈號控制</h2>
+        <button id="fixed" class="secondary">停止傳送並恢復固定時間</button>
+        <p id="send-status" role="status">尚未傳送指令。</p>
+        <p class="hint">保持頁面在前景。最後一筆有效車量送達 5 秒後，下一次綠燈恢復為 10 秒。</p>
+      </section>
+    </aside>
+  </main>
+</body>
+</html>

@@ -1,0 +1,40 @@
+:root {
+  color-scheme: light;
+  font: 16px/1.5 system-ui, sans-serif;
+  color: #142739;
+  background: #edf2f5;
+}
+* { box-sizing: border-box; }
+body { margin: 0 auto; padding: clamp(16px, 4vw, 42px); max-width: 1180px; }
+.title { margin-bottom: 22px; }
+h1 { font-size: clamp(1.7rem, 4vw, 2.45rem); letter-spacing: -.025em; margin: 0; }
+h2 { font-size: 1.2rem; margin: 0 0 14px; }
+p { margin: .75em 0; }
+.title p, .hint { color: #45586a; }
+main { display: grid; grid-template-columns: minmax(0, 2fr) minmax(240px, 1fr); gap: 16px; align-items: start; }
+aside { display: grid; gap: 16px; }
+section { padding: clamp(14px, 3vw, 24px); background: white; border: 1px solid #d7e1e9; border-radius: 14px; }
+.controls, .settings, .counts { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+button, input, select { font: inherit; color: inherit; border-radius: 7px; }
+button, select { min-height: 44px; }
+button { cursor: pointer; padding: 8px 12px; border: 1px solid transparent; background: #075877; color: white; }
+button.secondary { background: #edf4f7; border-color: #cbdde6; color: #16445a; }
+button:disabled { cursor: default; opacity: .55; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid #006bae; outline-offset: 2px; }
+select, input { border: 1px solid #adc0cc; background: white; padding: 7px; }
+select { max-width: 100%; }
+input { display: block; width: 100%; margin: 3px 0 9px; }
+.settings label { flex: 1 1 90px; }
+.stage { position: relative; margin-top: 14px; border-radius: 7px; overflow: hidden; background: #172531; }
+.stage video { display: block; width: 100%; height: auto; }
+.stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.stage canvas.selecting { touch-action: none; cursor: crosshair; }
+.counts { margin: 12px 0; }
+.counts > div { padding: 4px 10px; border-radius: 6px; font-variant-numeric: tabular-nums; }
+.counts output { padding-left: 6px; font-weight: 700; }
+.road-a { background: #fff2cf; }
+.road-b { background: #dff5ff; }
+summary { cursor: pointer; }
+details .settings { margin-top: 8px; }
+#camera-status, #send-status { background: #edf4f7; padding: 9px 12px; border-radius: 7px; }
+@media (max-width: 760px) { main { grid-template-columns: 1fr; } }
