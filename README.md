@@ -6,17 +6,20 @@ This classroom model uses six LEDs to control a crossing between two one-way roa
 
 ## Download the browser camera app
 
-Choose the package for your operating system and processor from [GitHub Release v1.2.1](https://github.com/JacksonChan762/INT4089_traffic-light/releases/tag/v1.2.1). Download and extract the entire archive before launching it. Python and OpenCV are included.
+Choose the installer or portable package for your operating system and processor. Extract the entire archive if you choose a portable package. Python and OpenCV are included. [GitHub Release v1.2.1](https://github.com/JacksonChan762/INT4089_traffic-light/releases/tag/v1.2.1)
 
 | Platform | Direct download | How to start |
 | --- | --- | --- |
-| Windows x64 | [Download ZIP](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.1/TrafficLight-Camera-windows-x64.zip) | Double-click `Start.cmd` in the extracted folder. |
+| Windows x64 installer | [Download setup EXE](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.1/TrafficLight-Camera-windows-x64-setup.exe) | Run setup from your standard Windows account, then open **Traffic Light Camera** from the Start menu. |
+| Windows x64 portable | [Download ZIP](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.1/TrafficLight-Camera-windows-x64.zip) | Double-click `Start.cmd` in the extracted folder. |
 | Linux x64 | [Download tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.1/TrafficLight-Camera-linux-x64.tar.gz) | Open a terminal in the extracted folder and run `./start.sh`. |
 | Linux ARM64 | [Download tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.1/TrafficLight-Camera-linux-arm64.tar.gz) | Open a terminal in the extracted folder and run `./start.sh`. |
 | macOS Apple Silicon | [Download tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.1/TrafficLight-Camera-macos-apple-silicon.tar.gz) | Open `Start.command` or run `./Start.command` in Terminal from the extracted folder. |
 | macOS Intel | [Download tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.1/TrafficLight-Camera-macos-intel.tar.gz) | Open `Start.command` or run `./Start.command` in Terminal from the extracted folder. |
 
-Verify your download with [SHA256SUMS.txt](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.1/SHA256SUMS.txt). The v1.2.1 package includes an English dashboard, USB Wi-Fi setup from the launcher, and automatic ESP32 discovery with the current gateway firmware. [Browser camera guide](browser_camera/README.md)
+Use the SHA-256 checksum for your download. [Windows installer checksum](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.1/TrafficLight-Camera-windows-x64-setup.exe.sha256) · [Portable archive manifest](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.1/SHA256SUMS.txt)
+
+The v1.2.1 package includes an English dashboard, USB Wi-Fi setup from the launcher, and automatic ESP32 discovery with the current gateway firmware. [Browser camera guide](browser_camera/README.md)
 
 ## Hardware and wiring
 

@@ -6,17 +6,20 @@
 
 ## 下載瀏覽器相機控制台
 
-在 [GitHub Release v1.2.1](https://github.com/JacksonChan762/INT4089_traffic-light/releases/tag/v1.2.1) 選擇符合電腦作業系統與處理器的版本。請先將整個壓縮檔解壓縮，再啟動程式。安裝包已包含 Python 與 OpenCV。
+依電腦的作業系統與處理器選擇安裝程式或免安裝套件。使用免安裝套件時，請先將整個壓縮檔解壓縮。各版本均包含 Python 與 OpenCV。 [GitHub Release v1.2.1](https://github.com/JacksonChan762/INT4089_traffic-light/releases/tag/v1.2.1)
 
 | 平台 | 直接下載 | 啟動方法 |
 | --- | --- | --- |
-| Windows x64 | [下載 ZIP](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.1/TrafficLight-Camera-windows-x64.zip) | 在解壓後的資料夾中雙擊 `Start.cmd`。 |
+| Windows x64 安裝版 | [下載安裝程式 EXE](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.1/TrafficLight-Camera-windows-x64-setup.exe) | 以一般 Windows 使用者帳戶執行安裝程式，完成後從開始功能表開啟 **Traffic Light Camera**。 |
+| Windows x64 免安裝版 | [下載 ZIP](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.1/TrafficLight-Camera-windows-x64.zip) | 在解壓後的資料夾中雙擊 `Start.cmd`。 |
 | Linux x64 | [下載 tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.1/TrafficLight-Camera-linux-x64.tar.gz) | 在解壓後的資料夾開啟終端機，執行 `./start.sh`。 |
 | Linux ARM64 | [下載 tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.1/TrafficLight-Camera-linux-arm64.tar.gz) | 在解壓後的資料夾開啟終端機，執行 `./start.sh`。 |
 | macOS Apple Silicon | [下載 tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.1/TrafficLight-Camera-macos-apple-silicon.tar.gz) | 在解壓後的資料夾開啟 `Start.command`，或在終端機執行 `./Start.command`。 |
 | macOS Intel | [下載 tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.1/TrafficLight-Camera-macos-intel.tar.gz) | 在解壓後的資料夾開啟 `Start.command`，或在終端機執行 `./Start.command`。 |
 
-請使用 [SHA256SUMS.txt](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.1/SHA256SUMS.txt) 驗證下載的檔案。v1.2.1 套件提供英文控制台。啟動程式可透過 USB 設定 ESP32 的 Wi-Fi，搭配目前的閘道韌體可自動尋找 ESP32。 [瀏覽器相機指南](browser_camera/README.zh-TW.md)
+請用對應的 SHA-256 校驗碼驗證下載檔案。 [Windows 安裝程式校驗碼](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.1/TrafficLight-Camera-windows-x64-setup.exe.sha256) · [免安裝套件校驗碼清單](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.1/SHA256SUMS.txt)
+
+v1.2.1 套件提供英文控制台。啟動程式可透過 USB 設定 ESP32 的 Wi-Fi，搭配目前的閘道韌體可自動尋找 ESP32。 [瀏覽器相機指南](browser_camera/README.zh-TW.md)
 
 ## 硬體與接線
 
