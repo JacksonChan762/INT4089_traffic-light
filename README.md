@@ -6,17 +6,17 @@ This classroom model uses six LEDs to control a crossing between two one-way roa
 
 ## Download the browser camera app
 
-Choose the package for your operating system and processor from [GitHub Release v1.2.0](https://github.com/JacksonChan762/INT4089_traffic-light/releases/tag/v1.2.0). Download and extract the entire archive before launching it. Python and OpenCV are included.
+Choose the package for your operating system and processor from [GitHub Release v1.2.1](https://github.com/JacksonChan762/INT4089_traffic-light/releases/tag/v1.2.1). Download and extract the entire archive before launching it. Python and OpenCV are included.
 
 | Platform | Direct download | How to start |
 | --- | --- | --- |
-| Windows x64 | [Download ZIP](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.0/TrafficLight-Camera-windows-x64.zip) | Double-click `Start.cmd` in the extracted folder. |
-| Linux x64 | [Download tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.0/TrafficLight-Camera-linux-x64.tar.gz) | Open a terminal in the extracted folder and run `./start.sh`. |
-| Linux ARM64 | [Download tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.0/TrafficLight-Camera-linux-arm64.tar.gz) | Open a terminal in the extracted folder and run `./start.sh`. |
-| macOS Apple Silicon | [Download tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.0/TrafficLight-Camera-macos-apple-silicon.tar.gz) | Open `Start.command` or run `./Start.command` in Terminal from the extracted folder. |
-| macOS Intel | [Download tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.0/TrafficLight-Camera-macos-intel.tar.gz) | Open `Start.command` or run `./Start.command` in Terminal from the extracted folder. |
+| Windows x64 | [Download ZIP](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.1/TrafficLight-Camera-windows-x64.zip) | Double-click `Start.cmd` in the extracted folder. |
+| Linux x64 | [Download tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.1/TrafficLight-Camera-linux-x64.tar.gz) | Open a terminal in the extracted folder and run `./start.sh`. |
+| Linux ARM64 | [Download tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.1/TrafficLight-Camera-linux-arm64.tar.gz) | Open a terminal in the extracted folder and run `./start.sh`. |
+| macOS Apple Silicon | [Download tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.1/TrafficLight-Camera-macos-apple-silicon.tar.gz) | Open `Start.command` or run `./Start.command` in Terminal from the extracted folder. |
+| macOS Intel | [Download tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.1/TrafficLight-Camera-macos-intel.tar.gz) | Open `Start.command` or run `./Start.command` in Terminal from the extracted folder. |
 
-Verify your download with [SHA256SUMS.txt](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.0/SHA256SUMS.txt). The v1.2.0 launcher supports USB Wi-Fi setup and automatic ESP32 discovery with the current gateway firmware. [Browser camera guide](browser_camera/README.md)
+Verify your download with [SHA256SUMS.txt](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.1/SHA256SUMS.txt). The v1.2.1 package includes an English dashboard, USB Wi-Fi setup from the launcher, and automatic ESP32 discovery with the current gateway firmware. [Browser camera guide](browser_camera/README.md)
 
 ## Hardware and wiring
 
@@ -78,7 +78,7 @@ Serial port names vary by host. Use the actual COM port on Windows or the actual
 
 Connect the Mac, Linux PC or Windows PC to an existing Wi-Fi router and configure the ESP32 over USB to join the same router's 2.4 GHz Wi-Fi. Open the dashboard on the computer to use its built-in or USB camera. For an Android phone or iPhone camera, join the phone to the same router and open the computer's HTTPS dashboard. The computer processes the images and sends the counts to the ESP32. The current dashboard discovers gateways on the local network and pairs automatically when it finds one board. [Browser camera setup and calibration guide](browser_camera/README.md)
 
-In the v1.2.0 launcher, connect the ESP32 over USB, close any serial monitor, and type `W` at the prompt to configure Wi-Fi. If the board is already configured, press Enter for the computer camera or enter the computer's LAN IPv4 address for phone access. [USB Wi-Fi setup](browser_camera/README.md#join-the-computers-network)
+In the v1.2.1 launcher, connect the ESP32 over USB, close any serial monitor, and type `W` at the prompt to configure Wi-Fi. If the board is already configured, press Enter for the computer camera or enter the computer's LAN IPv4 address for phone access. [USB Wi-Fi setup](browser_camera/README.md#join-the-computers-network)
 
 ## Try the direct manual controls
 

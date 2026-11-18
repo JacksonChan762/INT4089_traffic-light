@@ -1,80 +1,80 @@
 <!doctype html>
-<html lang="zh-Hant">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>十字路口紅綠燈</title>
+  <title>Traffic Light Dashboard</title>
   <link rel="stylesheet" href="/styles.css">
   <script type="module" src="/app.js"></script>
 </head>
 <body>
   <header class="title">
-    <h1>十字路口紅綠燈</h1>
-    <p>車多的道路可延長綠燈。設定會在下一次綠燈開始時生效。</p>
+    <h1>Traffic Light Dashboard</h1>
+    <p>The road with more cars gets a longer green light. Counts take effect when the next green phase begins.</p>
   </header>
   <section class="gateway" aria-labelledby="gateway-title">
     <div>
-      <h2 id="gateway-title">ESP32 連線</h2>
-      <p id="gateway-status" role="status">正在搜尋同一個 Wi-Fi 網路上的 ESP32。</p>
+      <h2 id="gateway-title">ESP32 connection</h2>
+      <p id="gateway-status" role="status">Searching for ESP32 gateways on the same Wi-Fi network.</p>
     </div>
     <div id="gateway-choice" hidden>
-      <label for="gateway-select">控制裝置</label>
+      <label for="gateway-select">Gateway</label>
       <select id="gateway-select"></select>
     </div>
   </section>
   <main>
     <section aria-labelledby="camera-title">
-      <h2 id="camera-title">相機計數</h2>
-      <p>使用開啟此頁的裝置上可用的相機。車輛計數由電腦處理。</p>
-      <p><a href="./traffic-test" target="_blank" rel="noopener">開啟車流測試場（新分頁）</a></p>
+      <h2 id="camera-title">Camera counting</h2>
+      <p>Use a camera on this device. The computer running the dashboard processes the images.</p>
+      <p><a href="./traffic-test" target="_blank" rel="noopener">Open Traffic Light Test Lab (new tab)</a></p>
       <div class="controls">
-        <label for="camera-source">相機</label>
+        <label for="camera-source">Camera</label>
         <select id="camera-source">
-          <option value="">自動選擇（優先後鏡頭）</option>
+          <option value="">Auto-select (prefer rear camera)</option>
         </select>
-        <button id="start-camera">開啟相機</button>
-        <button id="stop-camera" class="secondary" disabled>關閉相機</button>
+        <button id="start-camera">Open camera</button>
+        <button id="stop-camera" class="secondary" disabled>Close camera</button>
       </div>
       <div id="stage" class="stage" hidden>
-        <video id="video" autoplay muted playsinline aria-label="相機預覽"></video>
-        <canvas id="preview" aria-label="拖曳框選車道"></canvas>
+        <video id="video" autoplay muted playsinline aria-label="Camera preview"></video>
+        <canvas id="preview" aria-label="Drag to mark a road's waiting area"></canvas>
       </div>
-      <p>固定相機後，按 A、B 按鈕並分別拖曳框選等候區。清空兩區，再擷取空景。放回分開的模型車，確認車數後開始傳送。</p>
+      <p>Keep the camera steady. Use the Road A and Road B buttons to mark each waiting area. Clear both areas and capture the empty background. Space the cars apart and check the counts before sending.</p>
       <div class="controls">
-        <button id="select-a" class="secondary" disabled>框選 A 道</button>
-        <button id="select-b" class="secondary" disabled>框選 B 道</button>
-        <button id="capture-background" class="secondary" disabled>擷取空景</button>
+        <button id="select-a" class="secondary" disabled>Select Road A</button>
+        <button id="select-b" class="secondary" disabled>Select Road B</button>
+        <button id="capture-background" class="secondary" disabled>Capture empty background</button>
       </div>
-      <div class="counts" aria-label="相機辨識車量">
-        <div class="road-a">A 道 <output id="count-a">—</output></div>
-        <div class="road-b">B 道 <output id="count-b">—</output></div>
+      <div class="counts" aria-label="Detected car counts">
+        <div class="road-a">Road A <output id="count-a">—</output></div>
+        <div class="road-b">Road B <output id="count-b">—</output></div>
       </div>
       <details>
-        <summary>辨識調校</summary>
+        <summary>Detection settings</summary>
         <div class="settings">
-          <label>影像差異門檻 <input id="threshold" type="number" value="35" min="1" max="255" step="1"></label>
-          <label>模型車最小面積（像素） <input id="min-area" type="number" value="120" min="1" max="20000" step="1"></label>
+          <label>Image difference threshold <input id="threshold" type="number" value="35" min="1" max="255" step="1"></label>
+          <label>Minimum car area (pixels) <input id="min-area" type="number" value="120" min="1" max="20000" step="1"></label>
         </div>
       </details>
-      <p id="camera-status" role="status">開啟相機後，允許瀏覽器取用鏡頭。</p>
-      <button id="send-camera" aria-describedby="gateway-status" disabled>開始傳送相機車量</button>
+      <p id="camera-status" role="status">Open the camera and allow the browser to use it.</p>
+      <button id="send-camera" aria-describedby="gateway-status" disabled>Start sending camera counts</button>
     </section>
     <aside>
       <section aria-labelledby="manual-title">
-        <h2 id="manual-title">手動輸入</h2>
+        <h2 id="manual-title">Manual counts</h2>
         <form id="manual-form">
           <div class="settings">
-            <label>A 道車量 <input id="ns" type="number" min="0" max="99" step="1" value="0" required></label>
-            <label>B 道車量 <input id="ew" type="number" min="0" max="99" step="1" value="0" required></label>
+            <label>Road A cars <input id="ns" type="number" min="0" max="99" step="1" value="0" required></label>
+            <label>Road B cars <input id="ew" type="number" min="0" max="99" step="1" value="0" required></label>
           </div>
-          <button id="send-manual" aria-describedby="gateway-status" disabled>套用並持續傳送</button>
+          <button id="send-manual" aria-describedby="gateway-status" disabled>Apply and keep sending</button>
         </form>
       </section>
       <section aria-labelledby="signal-title">
-        <h2 id="signal-title">燈號控制</h2>
-        <button id="fixed" class="secondary" aria-describedby="gateway-status" disabled>停止傳送並恢復固定時間</button>
-        <p id="send-status" role="status">尚未傳送指令。</p>
-        <p class="hint">保持頁面在前景。最後一筆有效車量送達 5 秒後，下一次綠燈恢復為 10 秒。</p>
+        <h2 id="signal-title">Signal control</h2>
+        <button id="fixed" class="secondary" aria-describedby="gateway-status" disabled>Stop sending and restore fixed timing</button>
+        <p id="send-status" role="status">No command sent yet.</p>
+        <p class="hint">Keep this page in the foreground. Five seconds after the last valid counts, the next green phase returns to 10 seconds.</p>
       </section>
     </aside>
   </main>

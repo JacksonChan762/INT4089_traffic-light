@@ -63,29 +63,29 @@ function renderGateways() {
   const signature = JSON.stringify(gateways);
   if (signature !== renderedGateways) {
     renderedGateways = signature;
-    const prompt = new Option("請選擇 ESP32", "");
+    const prompt = new Option("Select an ESP32", "");
     prompt.disabled = true;
     gatewaySelect.replaceChildren(prompt, ...gateways.map(gateway =>
-      new Option(`${gateway.name}（${gateway.address}）`, gateway.id)));
+      new Option(`${gateway.name} (${gateway.address})`, gateway.id)));
   }
   gatewaySelect.value = active?.id ?? "";
 
   let message;
   if (gatewayPollFailed) {
-    message = "無法取得 ESP32 的連線狀態。正在重試。";
+    message = "Could not check the ESP32 connection. Retrying.";
   } else if (active) {
-    message = active.id ? `已配對 ${active.name}（${active.address}）。` : `使用手動指定的位址 ${active.address}。`;
+    message = active.id ? `Paired with ${active.name} (${active.address}).` : `Using the configured address ${active.address}.`;
   } else if (gatewayInfo?.state === "unavailable") {
-    message = "無法啟動 ESP32 搜尋。請檢查電腦網路設定，或啟動時指定 ESP32 位址。";
+    message = "Could not start ESP32 discovery. Check your computer's network settings or specify the ESP32 address at startup.";
   } else if (pairedGatewayId) {
-    message = gateways.length ? "已配對的 ESP32 已離線。請等待它重新連線，或選擇另一台。" :
-      "已配對的 ESP32 已離線。等待原裝置重新連線。";
+    message = gateways.length ? "The paired ESP32 is offline. Wait for it to reconnect or select another device." :
+      "The paired ESP32 is offline. Waiting for it to reconnect.";
   } else if (gateways.length > 1) {
-    message = "找到多台 ESP32。請選擇要控制的裝置。";
+    message = "Found multiple ESP32 devices. Select the one you want to control.";
   } else if (gateways.length === 1) {
-    message = `找到 ${gateways[0].name}。正在確認裝置。`;
+    message = `Found ${gateways[0].name}. Confirming the device.`;
   } else {
-    message = "正在搜尋同一個 Wi-Fi 網路上的 ESP32。";
+    message = "Looking for ESP32 devices on the same Wi-Fi network.";
   }
   status("gateway-status", message);
   updateControls();
@@ -120,7 +120,7 @@ async function refreshGateways() {
   }
   const active = activeGateway();
   if (previous && (previous.id ?? previous.address) !== (active?.id ?? active?.address)) {
-    stopGatewayCommands("原 ESP32 的車量傳送已停止。請重新開始傳送。");
+    stopGatewayCommands("Stopped sending counts to the previous ESP32. Start sending again to continue.");
   }
   renderGateways();
 }
@@ -139,7 +139,7 @@ async function post(path, body = new URLSearchParams(), headers = {}) {
     }
     return response;
   } catch (error) {
-    if (error.name === "AbortError") throw new Error("連線逾時");
+    if (error.name === "AbortError") throw new Error("Connection timed out");
     throw error;
   } finally {
     clearTimeout(timer);
@@ -160,7 +160,7 @@ async function send() {
   const fixed = queuedFixed;
   const counts = mode === "manual" ? manualCounts : mode === "camera" && countsAreFresh() && stableCounts;
   if (!fixed && !counts) {
-    if (mode === "camera") status("send-status", "等待穩定車量。暫停送出計數。");
+    if (mode === "camera") status("send-status", "Sending paused while camera counts stabilize.");
     return;
   }
   queuedFixed = false;
@@ -171,12 +171,11 @@ async function send() {
     await post(fixed ? "/api/auto" : "/api/counts",
       fixed ? new URLSearchParams() : new URLSearchParams({ ns: counts[0], ew: counts[1] }), headers);
     if (version === sendVersion) {
-      status("send-status", fixed ? "ESP32 已接收固定時間要求。" :
-        "ESP32 已接收" + (mode === "camera" ? "相機" : "手動") +
-        "車量。A 道 " + counts[0] + "，B 道 " + counts[1] + "。");
+      status("send-status", fixed ? "ESP32 received the fixed timing request." :
+        `ESP32 received the ${mode === "camera" ? "camera" : "manual"} counts. Road A ${counts[0]}, Road B ${counts[1]}.`);
     }
   } catch (error) {
-    if (version === sendVersion) status("send-status", "傳送失敗。 " + error.message);
+    if (version === sendVersion) status("send-status", "Could not send the command. " + error.message);
   } finally {
     sending = false;
     if (queuedFixed || version !== sendVersion || (fixed && mode !== "idle")) void send();
@@ -246,11 +245,11 @@ function closeCamera(message) {
 }
 
 function cameraError(error) {
-  if (error.name === "NotAllowedError") return "請在網站及系統設定中允許相機，再試一次。";
-  if (error.name === "NotFoundError") return "找不到相機。請連接相機或選擇其他鏡頭。";
-  if (error.name === "NotReadableError") return "無法讀取相機。請關閉其他使用相機的程式。";
-  if (error.name === "OverconstrainedError") return "此相機已不可用。請改用自動選擇。";
-  return "無法開啟相機。 " + error.message;
+  if (error.name === "NotAllowedError") return "Allow camera access in your browser and system settings, then try again.";
+  if (error.name === "NotFoundError") return "No camera found. Connect a camera or select another one.";
+  if (error.name === "NotReadableError") return "Could not access the camera. Close other apps using it and try again.";
+  if (error.name === "OverconstrainedError") return "This camera is unavailable. Choose Auto-select (prefer rear camera).";
+  return "Could not open the camera. " + error.message;
 }
 
 async function refreshCameras(version) {
@@ -263,7 +262,7 @@ async function refreshCameras(version) {
     for (const device of devices) {
       if (device.kind !== "videoinput" || !device.deviceId) continue;
       number++;
-      source.add(new Option(device.label || "相機 " + number, device.deviceId));
+      source.add(new Option(device.label || "Camera " + number, device.deviceId));
     }
     if (Array.from(source.options).some(option => option.value === activeId)) source.value = activeId;
   } catch {
@@ -274,7 +273,7 @@ async function refreshCameras(version) {
 async function startCamera() {
   if (!secureCamera || document.hidden) return;
   const deviceId = source.value;
-  closeCamera("等待相機權限…");
+  closeCamera("Waiting for camera permission…");
   const version = cameraVersion;
   opening = true;
   updateControls();
@@ -295,7 +294,7 @@ async function startCamera() {
     lastFrame = performance.now();
     const track = next.getVideoTracks()[0];
     track.addEventListener("ended", () => {
-      if (stream === next) closeCamera("相機已中斷。請重新開啟。");
+      if (stream === next) closeCamera("The camera disconnected. Select Open camera to reconnect.");
     });
     $("stage").hidden = false;
     video.srcObject = next;
@@ -303,7 +302,7 @@ async function startCamera() {
     updateControls();
     await video.play();
     if (version !== cameraVersion) return;
-    status("camera-status", "請框選兩道各自的等候區。");
+    status("camera-status", "Select the waiting area for each road.");
     watchFrames(next);
     void refreshCameras(version);
   } catch (error) {
@@ -337,7 +336,7 @@ function acceptFrame() {
   if (frame.width !== width || frame.height !== height) {
     frame.width = preview.width = width;
     frame.height = preview.height = height;
-    if (roads.some(Boolean) || drag) status("camera-status", "畫面尺寸已變更。請重新框選兩道。");
+    if (roads.some(Boolean) || drag) status("camera-status", "The camera frame size changed. Select both waiting areas again.");
     roads.fill(null);
     endSelection();
     invalidateCalibration();
@@ -353,7 +352,7 @@ function jpegFrame() {
   image.drawImage(video, 0, 0, frame.width, frame.height);
   return new Promise((resolve, reject) => frame.toBlob(blob => {
     if (blob) resolve(blob);
-    else reject(new Error("無法擷取相機畫面"));
+    else reject(new Error("Could not capture a camera frame"));
   }, "image/jpeg", .8));
 }
 
@@ -365,16 +364,16 @@ async function captureBackground() {
   const selected = { token, ready: false };
   calibration = selected;
   updateControls();
-  status("camera-status", "正在儲存空景…");
+  status("camera-status", "Saving the empty background…");
   try {
     await post("/api/camera/background", await jpegFrame(), { "X-Camera-Session": token });
     if (calibration !== selected) return;
     selected.ready = true;
-    status("camera-status", "空景已儲存。放回分開的模型車，等待車量穩定。");
+    status("camera-status", "Empty background saved. Place the model cars apart and wait for the counts to stabilize.");
   } catch (error) {
     if (calibration !== selected) return;
     calibration = null;
-    status("camera-status", "無法儲存空景。 " + error.message);
+    status("camera-status", "Could not save the empty background. " + error.message);
   }
   updateControls();
 }
@@ -411,13 +410,13 @@ async function analyze(selected) {
     stableCounts = matchingFrames >= 3 ? detection.counts : null;
     status("count-a", String(detection.counts[0]));
     status("count-b", String(detection.counts[1]));
-    status("camera-status", stableCounts ? "車量已穩定。" : "等待三次相同計數。");
+    status("camera-status", stableCounts ? "Counts are stable." : "Waiting for three matching counts.");
     updateControls();
     paintOverlay();
   } catch (error) {
     if (calibration === selected) {
       resetCounts();
-      status("camera-status", "影像分析失敗。 " + error.message);
+      status("camera-status", "Could not analyze the camera frame. " + error.message);
     }
   } finally {
     analyzing = false;
@@ -455,7 +454,7 @@ function selectRoad(index) {
   selecting = index;
   preview.classList.add("selecting");
   $(index === 0 ? "select-a" : "select-b").setAttribute("aria-pressed", "true");
-  status("camera-status", "請在畫面拖曳框選 " + (index === 0 ? "A" : "B") + " 道。");
+  status("camera-status", `Drag a box around the waiting area for Road ${index === 0 ? "A" : "B"}.`);
   updateControls();
 }
 
@@ -497,11 +496,11 @@ preview.addEventListener("pointerup", event => {
   const road = dragRoad();
   drag = null;
   if (road.w < 10 || road.h < 10 || overlaps(road, roads[1 - selecting])) {
-    status("camera-status", "框選範圍至少需 10 × 10 像素，且兩道不可重疊。請重新框選。");
+    status("camera-status", "Select an area at least 10 × 10 pixels that does not overlap the other road.");
   } else {
     roads[selecting] = road;
     endSelection();
-    status("camera-status", roads.every(Boolean) ? "清空兩道後，擷取空景。" : "請框選另一道。");
+    status("camera-status", roads.every(Boolean) ? "Clear both roads, then select Capture empty background." : "Select the other road's waiting area.");
   }
   paintOverlay();
   updateControls();
@@ -515,7 +514,7 @@ preview.addEventListener("lostpointercapture", () => {
 });
 
 $("start-camera").addEventListener("click", startCamera);
-$("stop-camera").addEventListener("click", () => closeCamera("相機已關閉。"));
+$("stop-camera").addEventListener("click", () => closeCamera("Camera closed."));
 source.addEventListener("change", () => { if (stream || opening) void startCamera(); });
 $("select-a").addEventListener("click", () => selectRoad(0));
 $("select-b").addEventListener("click", () => selectRoad(1));
@@ -532,7 +531,7 @@ gatewaySelect.addEventListener("change", () => {
       !gatewayInfo.gateways.some(gateway => gateway.id === gatewaySelect.value) ||
       pairedGatewayId === gatewaySelect.value) return;
   pairedGatewayId = gatewaySelect.value;
-  stopGatewayCommands("已選擇 ESP32。請開始傳送要使用的車量。");
+  stopGatewayCommands("ESP32 selected. Start sending the counts you want to use.");
   renderGateways();
 });
 
@@ -558,7 +557,7 @@ $("manual-form").addEventListener("submit", event => {
 });
 
 function leavePage() {
-  if (stream || opening) closeCamera("頁面已離開前景。請重新開啟相機。");
+  if (stream || opening) closeCamera("The camera closed when the page went into the background. Select Open camera to continue.");
   if (mode !== "idle") changeMode("idle", true);
 }
 
@@ -572,13 +571,13 @@ document.addEventListener("visibilitychange", () => {
 window.addEventListener("pagehide", leavePage);
 setInterval(() => {
   if (stream && performance.now() - lastFrame >= (video.readyState >= 2 ? 1500 : 3000)) {
-    closeCamera("相機畫面已停頓。請重新開啟。");
+    closeCamera("The camera feed stopped. Select Open camera to continue.");
   }
   void send();
 }, 1000);
 
 if (!secureCamera) {
-  status("camera-status", "這個頁面無法取用相機。請在電腦用 localhost，或在手機用受信任的 HTTPS 網址。");
+  status("camera-status", "Camera access requires localhost on the computer or a trusted HTTPS address on the phone.");
 }
 updateControls();
 void refreshGateways();

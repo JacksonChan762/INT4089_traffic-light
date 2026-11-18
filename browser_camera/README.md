@@ -7,7 +7,7 @@ The dashboard runs on a Mac, Linux PC or Windows PC. Open the dashboard on the d
 ## Join the computer's network
 
 1. Update the ESP32 using the [build and upload instructions](../README.md#build-and-upload). Connect the computer to an existing Wi-Fi router. The router must offer **2.4 GHz Wi-Fi** for the ESP32 and let devices on its local network communicate.
-2. Connect the ESP32 by USB and close any open serial monitor. Open `Start.command` on macOS, `Start.cmd` on Windows, or `./start.sh` on Linux from the v1.2.0 package.
+2. Connect the ESP32 by USB and close any open serial monitor. Open `Start.command` on macOS, `Start.cmd` on Windows, or `./start.sh` on Linux from the v1.2.1 package.
 3. At the launcher prompt, type `W` and press Enter. Select the ESP32's serial port if more than one port is listed. Enter the router's 2.4 GHz Wi-Fi name (SSID) and password. The password stays hidden as you type, and the launcher sends the credentials to the board over USB.
 4. The ESP32 saves the settings and restarts. The launcher opens the computer dashboard and discovers the board when it joins the router. Once configured, press Enter at the launcher prompt to start the computer camera dashboard. For phone camera access, enter the computer's LAN IPv4 address at launch. [Phone camera setup](#use-a-phone-camera-in-the-browser)
 
@@ -26,15 +26,15 @@ You can also configure the ESP32 with PlatformIO's USB serial monitor.
 
 ## Find and pair an ESP32
 
-The computer running the dashboard discovers ESP32 gateways on its local network using multicast DNS (mDNS). Use the updated gateway firmware and keep the dashboard open while the board joins Wi-Fi. The dashboard pairs with a single detected ESP32. When it lists multiple boards, select the one you want to control from the ESP32 menu.
+The computer running the dashboard discovers ESP32 gateways on its local network using multicast DNS (mDNS). Use the updated gateway firmware and keep the dashboard open while the board joins Wi-Fi. The dashboard pairs with a single detected ESP32. When it lists multiple boards, select the one you want to control from the **Gateway** menu.
 
 The dashboard remembers the chosen device during the session and finds it again if its IP address changes. After a connection loss or selection change, start sending counts again from the dashboard. If the computer asks for permission to access the local network, allow it. For older firmware or a network that blocks multicast, start the dashboard from a terminal with `--esp http://192.168.1.30`, substituting the ESP32's assigned IPv4 address.
 
 ## Portable packages
 
-Use the archive for your operating system and processor. Extract the whole archive and open the supplied launcher. Its bundled Python and OpenCV run on the computer. In the v1.2.0 launcher, type `W` at the launcher prompt for USB Wi-Fi setup, press Enter for the computer camera, or enter the computer's LAN IPv4 address and provide the trusted certificate and key for a phone camera. Both camera modes discover ESP32 gateways automatically. [Package instructions](packaging/README.txt)
+Use the archive for your operating system and processor. Extract the whole archive and open the supplied launcher. Its bundled Python and OpenCV run on the computer. In the v1.2.1 launcher, type `W` at the launcher prompt for USB Wi-Fi setup, press Enter for the computer camera, or enter the computer's LAN IPv4 address and provide the trusted certificate and key for a phone camera. Both camera modes discover ESP32 gateways automatically. [Package instructions](packaging/README.txt)
 
-Download v1.2.0 for your operating system and processor. [Release downloads](../README.md#download-the-browser-camera-app)
+Download v1.2.1 for your operating system and processor. [Release downloads](../README.md#download-the-browser-camera-app)
 
 To build the five archives from source, run `python3.12 browser_camera/packaging/build.py` from the project root with Python 3.12 and pip. The archives and SHA-256 checksums appear under `dist/`.
 
@@ -74,7 +74,7 @@ Start the web dashboard with automatic ESP32 discovery.
 .venv-browser/bin/python -m browser_camera.server
 ```
 
-On Windows, use `.\.venv-browser\Scripts\python.exe` in place of `.venv-browser/bin/python`. Open **http://127.0.0.1:8000/** on the same computer. Press **開啟相機** and grant camera access. Use the **相機** menu to switch between available cameras after granting access.
+On Windows, use `.\.venv-browser\Scripts\python.exe` in place of `.venv-browser/bin/python`. Open **http://127.0.0.1:8000/** on the same computer. Press **Open camera** and grant camera access. Use the **Camera** menu to switch between available cameras after granting access.
 
 ## Use a phone camera in the browser
 
@@ -96,24 +96,24 @@ The phone needs to trust the HTTPS certificate for the computer's network addres
    .venv-browser/bin/python -m browser_camera.server --bind 192.168.1.20 --cert traffic-cert.pem --key traffic-key.pem
    ```
 
-5. Open **https://192.168.1.20:8000/** on the phone in Chrome on Android or Safari on iPhone. Press **開啟相機**, allow camera access and choose the desired lens. If the computer's address changes, generate a certificate for the new address and update `--bind`.
+5. Open **https://192.168.1.20:8000/** on the phone in Chrome on Android or Safari on iPhone. Press **Open camera**, allow camera access and choose the desired lens. If the computer's address changes, generate a certificate for the new address and update `--bind`.
 
 ## Calibrate and send counts
 
 1. Mount the camera so both waiting areas fit in the preview. Keep the lighting and framing steady.
-2. Press **框選 A 道**, then drag across road A's waiting area. Repeat with **框選 B 道**. The rectangles must be separate.
-3. Clear both areas and press **擷取空景**. Put separated model cars back in the areas. The computer compares each frame with the empty scene and displays boxes and per-road counts. If there are false detections, adjust the difference threshold or minimum car area. If the scene moves, capture a new empty background.
-4. After three matching counts, press **開始傳送相機車量**. Keep the page in the foreground. Send counts from one dashboard or ESP32 control page at a time.
-5. Press **停止傳送並恢復固定時間** to pause adaptive timing, or **關閉相機** to release the camera. If the camera or connection drops, the Uno uses its fixed cycle once five seconds have elapsed since the last valid counts. Changes take effect when the next green phase starts.
+2. Press **Select Road A**, then drag across road A's waiting area. Repeat with **Select Road B**. The rectangles must be separate.
+3. Clear both areas and press **Capture empty background**. Put separated model cars back in the areas. The computer compares each frame with the empty scene and displays boxes and per-road counts. If there are false detections, adjust the difference threshold or minimum car area. If the scene moves, capture a new empty background.
+4. After three matching counts, press **Start sending camera counts**. Keep the page in the foreground. Send counts from one dashboard or ESP32 control page at a time.
+5. Press **Stop sending and restore fixed timing** to pause adaptive timing, or **Close camera** to release the camera. If the camera or connection drops, the Uno uses its fixed cycle once five seconds have elapsed since the last valid counts. Changes take effect when the next green phase starts.
 
 The host keeps the empty background temporarily in memory. Camera frames are processed on the computer and are never forwarded to the ESP32. Move hands and shadows out of the waiting areas. Cars that touch can appear as one object.
 
-You can use **手動輸入** in the same dashboard without opening a camera. If no computer is available, use the [ESP32 fallback manual page](../README.md#try-the-direct-manual-controls).
+You can enter counts under **Manual counts** and select **Apply and keep sending** without opening a camera. If no computer is available, use the [ESP32 fallback manual page](../README.md#try-the-direct-manual-controls).
 
 ## Test the camera with cars at traffic lights
 
-1. Select **開啟車流測試場（新分頁）** on the dashboard. You can also open `browser_camera/traffic_test.html` directly on another device. Put the test page on a display that the camera can see and use **Expand view** before calibrating if you need a larger image.
-2. With both roads empty, open the camera on the dashboard and frame both marked waiting areas. Select each area separately, keeping the signal lamps outside both selections. Click **擷取空景**, then keep the camera and display fixed.
+1. Select **Open Traffic Light Test Lab (new tab)** on the dashboard. You can also open `browser_camera/traffic_test.html` directly on another device. Put the test page on a display that the camera can see and use **Expand view** before calibrating if you need a larger image.
+2. With both roads empty, open the camera on the dashboard and frame both marked waiting areas. Select each area separately, keeping the signal lamps outside both selections. Click **Capture empty background**, then keep the camera and display fixed.
 3. Set the car counts for roads A and B and click **Queue cars**. Both lights stay red and the cars remain still. Compare the dashboard readings with the selected counts in this mode.
 4. Click **Start signal cycle** to let cars move and use **Speed** to adjust how fast they drive. Click **Hold red** to return to the stationary queues, or **Clear roads** to restore the empty scene for calibration.
 

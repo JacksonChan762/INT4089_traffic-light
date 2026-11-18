@@ -81,6 +81,12 @@ class BrowserHostTests(unittest.TestCase):
                 self.assertEqual(code, 200)
                 self.assertTrue(body)
 
+    def test_camera_dashboard_is_in_english(self):
+        code, body = self.request('GET', '/')
+        self.assertEqual(code, 200)
+        self.assertIn(b'<html lang="en">', body)
+        self.assertIn(b'Traffic Light Dashboard', body)
+
     def test_reports_manual_gateway(self):
         code, body = self.request('GET', '/api/gateways')
         self.assertEqual((code, json.loads(body)),
