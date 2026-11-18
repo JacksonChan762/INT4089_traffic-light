@@ -5,6 +5,7 @@ const overlay = preview.getContext("2d");
 const frame = document.createElement("canvas");
 const image = frame.getContext("2d");
 const source = $("camera-source");
+const gatewaySelect = $("gateway-select");
 const defaultCamera = source.options[0].textContent;
 const roads = [null, null];
 const colors = ["#ffce4c", "#70d8ff"];
@@ -29,10 +30,99 @@ let manualCounts;
 let queuedFixed = false;
 let sending = false;
 let sendVersion = 0;
+let gatewayInfo = null;
+let pairedGatewayId = null;
+let soleCandidateId = null;
+let gatewayPollFailed = false;
+let pollingGateways = false;
+let renderedGateways = "";
 
 function status(id, message) {
   const element = $(id);
   if (element.textContent !== message) element.textContent = message;
+}
+
+function activeGateway() {
+  if (gatewayPollFailed || !gatewayInfo) return null;
+  if (gatewayInfo.mode === "manual") return gatewayInfo;
+  return gatewayInfo.gateways.find(gateway => gateway.id === pairedGatewayId) ?? null;
+}
+
+function stopGatewayCommands(message) {
+  mode = "idle";
+  manualCounts = undefined;
+  queuedFixed = false;
+  sendVersion++;
+  status("send-status", message);
+}
+
+function renderGateways() {
+  const gateways = gatewayPollFailed ? [] : gatewayInfo?.gateways ?? [];
+  const active = activeGateway();
+  $("gateway-choice").hidden = gateways.length < 2 && !(pairedGatewayId && !active && gateways.length);
+  const signature = JSON.stringify(gateways);
+  if (signature !== renderedGateways) {
+    renderedGateways = signature;
+    const prompt = new Option("請選擇 ESP32", "");
+    prompt.disabled = true;
+    gatewaySelect.replaceChildren(prompt, ...gateways.map(gateway =>
+      new Option(`${gateway.name}（${gateway.address}）`, gateway.id)));
+  }
+  gatewaySelect.value = active?.id ?? "";
+
+  let message;
+  if (gatewayPollFailed) {
+    message = "無法取得 ESP32 的連線狀態。正在重試。";
+  } else if (active) {
+    message = active.id ? `已配對 ${active.name}（${active.address}）。` : `使用手動指定的位址 ${active.address}。`;
+  } else if (gatewayInfo?.state === "unavailable") {
+    message = "無法啟動 ESP32 搜尋。請檢查電腦網路設定，或啟動時指定 ESP32 位址。";
+  } else if (pairedGatewayId) {
+    message = gateways.length ? "已配對的 ESP32 已離線。請等待它重新連線，或選擇另一台。" :
+      "已配對的 ESP32 已離線。等待原裝置重新連線。";
+  } else if (gateways.length > 1) {
+    message = "找到多台 ESP32。請選擇要控制的裝置。";
+  } else if (gateways.length === 1) {
+    message = `找到 ${gateways[0].name}。正在確認裝置。`;
+  } else {
+    message = "正在搜尋同一個 Wi-Fi 網路上的 ESP32。";
+  }
+  status("gateway-status", message);
+  updateControls();
+}
+
+async function refreshGateways() {
+  if (pollingGateways) return;
+  pollingGateways = true;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 2500);
+  let next;
+  try {
+    const response = await fetch("/api/gateways", { signal: controller.signal });
+    if (!response.ok) throw new Error("Gateway status unavailable");
+    next = await response.json();
+  } catch {
+    next = null;
+  } finally {
+    clearTimeout(timeout);
+    pollingGateways = false;
+  }
+
+  const previous = activeGateway();
+  gatewayInfo = next;
+  gatewayPollFailed = !next;
+  if (!pairedGatewayId && next?.mode === "auto" && next.state !== "unavailable" && next.gateways.length === 1) {
+    const id = next.gateways[0].id;
+    if (id === soleCandidateId) pairedGatewayId = id;
+    soleCandidateId = id;
+  } else {
+    soleCandidateId = null;
+  }
+  const active = activeGateway();
+  if (previous && (previous.id ?? previous.address) !== (active?.id ?? active?.address)) {
+    stopGatewayCommands("原 ESP32 的車量傳送已停止。請重新開始傳送。");
+  }
+  renderGateways();
 }
 
 async function post(path, body = new URLSearchParams(), headers = {}) {
@@ -65,7 +155,8 @@ function changeMode(next, fixed = false) {
 }
 
 async function send() {
-  if (sending || (document.hidden && !queuedFixed)) return;
+  const gateway = activeGateway();
+  if (!gateway || sending || (document.hidden && !queuedFixed)) return;
   const fixed = queuedFixed;
   const counts = mode === "manual" ? manualCounts : mode === "camera" && countsAreFresh() && stableCounts;
   if (!fixed && !counts) {
@@ -75,9 +166,10 @@ async function send() {
   queuedFixed = false;
   sending = true;
   const version = sendVersion;
+  const headers = gateway.id ? { "X-Gateway-ID": gateway.id } : {};
   try {
     await post(fixed ? "/api/auto" : "/api/counts",
-      fixed ? new URLSearchParams() : new URLSearchParams({ ns: counts[0], ew: counts[1] }));
+      fixed ? new URLSearchParams() : new URLSearchParams({ ns: counts[0], ew: counts[1] }), headers);
     if (version === sendVersion) {
       status("send-status", fixed ? "ESP32 已接收固定時間要求。" :
         "ESP32 已接收" + (mode === "camera" ? "相機" : "手動") +
@@ -108,7 +200,10 @@ function updateControls() {
   $("select-b").disabled = !ready;
   $("capture-background").disabled = !ready || roads.some(road => !road) ||
     selecting !== null || (calibration && !calibration.ready);
-  $("send-camera").disabled = !countsAreFresh() || mode === "camera";
+  const connected = !!activeGateway();
+  $("send-camera").disabled = !connected || !countsAreFresh() || mode === "camera";
+  $("send-manual").disabled = !connected;
+  $("fixed").disabled = !connected;
 }
 
 function resetCounts() {
@@ -426,9 +521,20 @@ $("select-a").addEventListener("click", () => selectRoad(0));
 $("select-b").addEventListener("click", () => selectRoad(1));
 $("capture-background").addEventListener("click", captureBackground);
 $("send-camera").addEventListener("click", () => {
-  if (countsAreFresh()) changeMode("camera");
+  if (activeGateway() && countsAreFresh()) changeMode("camera");
 });
-$("fixed").addEventListener("click", () => changeMode("idle", true));
+$("fixed").addEventListener("click", () => {
+  if (activeGateway()) changeMode("idle", true);
+});
+
+gatewaySelect.addEventListener("change", () => {
+  if (gatewayInfo?.mode !== "auto" ||
+      !gatewayInfo.gateways.some(gateway => gateway.id === gatewaySelect.value) ||
+      pairedGatewayId === gatewaySelect.value) return;
+  pairedGatewayId = gatewaySelect.value;
+  stopGatewayCommands("已選擇 ESP32。請開始傳送要使用的車量。");
+  renderGateways();
+});
 
 for (const id of ["threshold", "min-area"]) {
   const input = $(id);
@@ -446,6 +552,7 @@ for (const id of ["threshold", "min-area"]) {
 
 $("manual-form").addEventListener("submit", event => {
   event.preventDefault();
+  if (!activeGateway()) return;
   manualCounts = [$("ns").valueAsNumber, $("ew").valueAsNumber];
   changeMode("manual");
 });
@@ -457,7 +564,10 @@ function leavePage() {
 
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) leavePage();
-  else void send();
+  else {
+    void refreshGateways();
+    void send();
+  }
 });
 window.addEventListener("pagehide", leavePage);
 setInterval(() => {
@@ -471,3 +581,5 @@ if (!secureCamera) {
   status("camera-status", "這個頁面無法取用相機。請在電腦用 localhost，或在手機用受信任的 HTTPS 網址。");
 }
 updateControls();
+void refreshGateways();
+setInterval(refreshGateways, 2000);

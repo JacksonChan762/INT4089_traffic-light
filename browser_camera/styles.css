@@ -14,6 +14,11 @@ p { margin: .75em 0; }
 main { display: grid; grid-template-columns: minmax(0, 2fr) minmax(240px, 1fr); gap: 16px; align-items: start; }
 aside { display: grid; gap: 16px; }
 section { padding: clamp(14px, 3vw, 24px); background: white; border: 1px solid #d7e1e9; border-radius: 14px; }
+.gateway { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; margin-bottom: 16px; }
+.gateway h2 { margin: 0 0 4px; }
+.gateway p { margin: 0; }
+#gateway-choice { min-width: 0; max-width: 100%; }
+#gateway-choice label { display: block; margin-bottom: 3px; }
 .controls, .settings, .counts { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
 button, input, select { font: inherit; color: inherit; border-radius: 7px; }
 button, select { min-height: 44px; }

@@ -32,7 +32,8 @@ TARGETS = {
 }
 APP_FILES = (
     'browser_camera/app.js', 'browser_camera/camera.py', 'browser_camera/detector.py',
-    'browser_camera/index.html', 'browser_camera/server.py', 'browser_camera/styles.css',
+    'browser_camera/discovery.py', 'browser_camera/index.html', 'browser_camera/server.py',
+    'browser_camera/styles.css', 'browser_camera/packaging/wifi_setup.py',
 )
 WINDOWS_START = r"""@echo off
 setlocal

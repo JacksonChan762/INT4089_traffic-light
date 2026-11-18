@@ -15,30 +15,47 @@ Linux
   Use the x64 or ARM64 package on a glibc-based distribution such as Ubuntu or
   Debian. In a terminal in the extracted folder, run ./start.sh.
 
+ESP32 Wi-Fi setup
+  Flash the current ESP32 gateway firmware. Connect the board by USB and
+  close any serial monitor. Connect the computer to the Wi-Fi router that
+  the ESP32 will use. Start the launcher, type W at the prompt and press
+  Enter. Select the ESP32 serial port if more than one port is listed.
+  Enter the router's 2.4 GHz Wi-Fi name and password. The password is
+  hidden as you type. The launcher sends the settings to the board over
+  USB. The ESP32 saves them and restarts. The launcher opens the computer
+  dashboard and discovers the ESP32 after it joins the router.
+
 Computer camera
-  Enter the ESP32's assigned LAN IP. Press Enter at the second prompt to open
-  the dashboard on the computer. If the browser did not open automatically,
-  use the URL printed in the terminal. Open the camera from the dashboard.
+  Once the ESP32 is set up, press Enter at the launcher prompt to open
+  the dashboard on the computer. Keep both devices on the same Wi-Fi router.
+  The dashboard discovers ESP32 gateways automatically. If the browser
+  did not open, use the URL printed in the terminal. Open the camera from
+  the dashboard.
 
 Phone camera
-  Connect the phone to the computer's hotspot or shared local network. Obtain
-  a trusted HTTPS certificate for the computer's LAN IP. At the second prompt,
-  type the computer's LAN IP, then enter the certificate and key paths. Open
-  the printed HTTPS URL on the phone and allow camera access. The phone must
-  trust the certificate. With mkcert, install only its public root CA on the
-  phone. Keep the private keys on the computer.
+  Connect the phone to the same Wi-Fi router as the computer and ESP32.
+  Obtain a trusted HTTPS certificate for the computer's LAN IP. Type the
+  computer's LAN IPv4 address into the launcher, then enter the certificate
+  and key paths. Open the printed HTTPS URL on the phone and allow camera
+  access. The dashboard discovers ESP32 gateways automatically. With mkcert,
+  install only its public root CA on the phone so it can trust the HTTPS
+  certificate. Keep the private keys on the computer.
   https://github.com/FiloSottile/mkcert#mobile-devices
   https://support.apple.com/en-us/102390
 
-ESP32 setup
-  The ESP32 needs the project's gateway firmware and must be reachable from
-  the computer. Join the TrafficLight-Lab setup network and open
-  http://192.168.4.1/wifi to configure its hotspot or router connection.
-  The setup page and USB serial monitor show the assigned ESP32 address.
+Automatic ESP32 pairing
+  Use the current gateway firmware and keep the dashboard open while the
+  ESP32 joins the router's network. The dashboard pairs with one board
+  automatically. Select an ESP32 from the menu when multiple boards are found.
+  If the network blocks multicast DNS, use the --esp option below.
 
 Advanced
+  You can also use a USB serial monitor at 115200 baud. Type wifi and
+  press Enter, then enter the router's 2.4 GHz Wi-Fi name and password as
+  prompted. Type status after the ESP32 restarts to display its IPv4 address.
   Pass --help to the launcher to see the server options. For example, on
-  Linux use ./start.sh --esp http://192.168.137.30 --open-browser.
+  Linux use ./start.sh --esp http://192.168.1.30 --open-browser, substituting
+  the ESP32's assigned IPv4 address.
   Press Ctrl+C in the terminal to stop the host.
 
 Windows startup

@@ -12,6 +12,16 @@
     <h1>十字路口紅綠燈</h1>
     <p>車多的道路可延長綠燈。設定會在下一次綠燈開始時生效。</p>
   </header>
+  <section class="gateway" aria-labelledby="gateway-title">
+    <div>
+      <h2 id="gateway-title">ESP32 連線</h2>
+      <p id="gateway-status" role="status">正在搜尋同一個 Wi-Fi 網路上的 ESP32。</p>
+    </div>
+    <div id="gateway-choice" hidden>
+      <label for="gateway-select">控制裝置</label>
+      <select id="gateway-select"></select>
+    </div>
+  </section>
   <main>
     <section aria-labelledby="camera-title">
       <h2 id="camera-title">相機計數</h2>
@@ -46,7 +56,7 @@
         </div>
       </details>
       <p id="camera-status" role="status">開啟相機後，允許瀏覽器取用鏡頭。</p>
-      <button id="send-camera" disabled>開始傳送相機車量</button>
+      <button id="send-camera" aria-describedby="gateway-status" disabled>開始傳送相機車量</button>
     </section>
     <aside>
       <section aria-labelledby="manual-title">
@@ -56,12 +66,12 @@
             <label>A 道車量 <input id="ns" type="number" min="0" max="99" step="1" value="0" required></label>
             <label>B 道車量 <input id="ew" type="number" min="0" max="99" step="1" value="0" required></label>
           </div>
-          <button>套用並持續傳送</button>
+          <button id="send-manual" aria-describedby="gateway-status" disabled>套用並持續傳送</button>
         </form>
       </section>
       <section aria-labelledby="signal-title">
         <h2 id="signal-title">燈號控制</h2>
-        <button id="fixed" class="secondary">停止傳送並恢復固定時間</button>
+        <button id="fixed" class="secondary" aria-describedby="gateway-status" disabled>停止傳送並恢復固定時間</button>
         <p id="send-status" role="status">尚未傳送指令。</p>
         <p class="hint">保持頁面在前景。最後一筆有效車量送達 5 秒後，下一次綠燈恢復為 10 秒。</p>
       </section>

@@ -1,14 +1,16 @@
 #include <Arduino.h>
+#include <ESPmDNS.h>
 #include <WiFi.h>
 #include <WebServer.h>
 #include <Preferences.h>
-#include <esp_random.h>
 #include <ctype.h>
+#include <esp_mac.h>
+#include <string.h>
 
 // Assumes a classic ESP32-WROOM-32 development board, not ESP32-C3/S3.
-const char *SSID = "TrafficLight-Lab";
-const char *PASSWORD = "traffic123";
-WebServer server(80);
+constexpr uint16_t GATEWAY_PORT = 80;
+constexpr unsigned GATEWAY_VERSION = 1;
+WebServer server(GATEWAY_PORT);
 HardwareSerial uno(2);
 
 const char PAGE[] PROGMEM = R"HTML(
@@ -25,7 +27,6 @@ const char PAGE[] PROGMEM = R"HTML(
 <p>綠燈 10–20 秒，黃燈 3 秒，全紅 2 秒。時間在下一次綠燈開始時更新。</p>
 <p>請保持此頁在前景。停止傳送 5 秒後，下一次綠燈使用固定 10 秒。</p>
 <small>顯示的是 ESP32 接收狀態；此版本未接收 Arduino 燈號回報。相機計數請使用電腦上的瀏覽器控制台。</small>
-<p><a href="/wifi">設定電腦 Wi-Fi／熱點</a></p>
 <script>
 const output = document.querySelector('#status');
 let counts = null, busy = false, fixedPending = false, revision = 0;
@@ -83,40 +84,87 @@ bool readCount(const String &s, unsigned &value) {
 }
 constexpr char WIFI_NAMESPACE[] = "traffic-wifi";
 constexpr char WIFI_KEY[] = "credentials";
+constexpr unsigned long WIFI_RETRY_MS = 30000;
+constexpr unsigned long DISCOVERY_RETRY_MS = 10000;
+
+// Keep the stored layout so existing Wi-Fi settings survive a firmware upload.
 struct WifiCredentials {
   char ssid[33];
   char password[65];
 };
+
+enum class ConsoleStep { Command, Ssid, Password };
+
 WifiCredentials station = {};
-String setupToken;
-bool restartPending = false;
-unsigned long savedAt = 0;
+WifiCredentials pending = {};
+ConsoleStep consoleStep = ConsoleStep::Command;
 unsigned long lastStationAttempt = 0;
 IPAddress reportedStationIP;
+char gatewayId[13] = {};
+char gatewayHostname[sizeof("traffic-light-xxxxxx")] = {};
+bool discoveryStarted = false;
+unsigned long lastDiscoveryAttempt = 0;
 
-const char WIFI_PAGE[] PROGMEM = R"HTML(
-<!doctype html><html lang="zh-Hant"><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>設定 ESP32 Wi-Fi</title>
-<style>body{font:18px system-ui;max-width:540px;margin:40px auto;padding:20px}input,button{font:inherit;margin:8px 0;padding:10px;display:block;box-sizing:border-box;width:100%}</style>
-<h1>設定電腦 Wi-Fi／熱點</h1>
-<p>電腦需與 ESP32 位於同一網路。請使用支援 2.4 GHz 的 Wi-Fi 或電腦熱點。</p>
-<p>ESP32 在該網路的位址：<strong>STATION_ADDRESS</strong></p>
-<form action="/wifi" method="post">
-<input type="hidden" name="token" value="SETUP_TOKEN">
-<label>網路名稱（SSID）<input name="ssid" maxlength="32" required></label>
-<label>Wi-Fi 密碼（開放式網路可留空）<input name="password" type="password" maxlength="64" autocomplete="new-password"></label>
-<button>儲存並重新連線</button>
-</form><p><a href="/">返回手動控制</a></p></html>
-)HTML";
-
-bool onSetupNetwork() {
-  return server.client().localIP() == WiFi.softAPIP();
+void initializeGatewayIdentity() {
+  uint8_t mac[6];
+  if (esp_efuse_mac_get_default(mac) != ESP_OK) {
+    Serial.println("Could not read the ESP32 identity. Automatic discovery is unavailable.");
+    return;
+  }
+  for (size_t i = 0; i < sizeof(mac); ++i) {
+    snprintf(gatewayId + i * 2, 3, "%02x", static_cast<unsigned>(mac[i]));
+  }
+  snprintf(gatewayHostname, sizeof(gatewayHostname), "traffic-light-%s", gatewayId + 6);
 }
 
-bool validStationPassword(const String &password) {
-  const size_t length = password.length();
-  if (length == 0) return true;
+void startGatewayDiscovery() {
+  if (!gatewayId[0]) return;
+  // ESPmDNS exposes the checked addServiceTxt overload for mutable C strings.
+  char service[] = "traffic-light";
+  char protocol[] = "tcp";
+  char idKey[] = "id";
+  char versionKey[] = "v";
+  char version[11];
+  snprintf(version, sizeof(version), "%u", GATEWAY_VERSION);
+  discoveryStarted = MDNS.begin(gatewayHostname) &&
+    MDNS.addService(service, protocol, GATEWAY_PORT) &&
+    MDNS.addServiceTxt(service, protocol, idKey, gatewayId) &&
+    MDNS.addServiceTxt(service, protocol, versionKey, version);
+  lastDiscoveryAttempt = millis();
+  if (!discoveryStarted) {
+    MDNS.end();
+    Serial.println("Could not start gateway discovery. Retrying shortly.");
+  }
+}
+
+void stopGatewayDiscovery() {
+  if (!discoveryStarted) return;
+  MDNS.end();
+  discoveryStarted = false;
+}
+
+IPAddress stationAddress() {
+  return WiFi.status() == WL_CONNECTED ? WiFi.localIP() : IPAddress();
+}
+
+void printGatewayAddress(const IPAddress &address) {
+  Serial.print("Gateway on computer Wi-Fi: http://");
+  Serial.println(address);
+}
+
+void printWifiStatus() {
+  const IPAddress address = stationAddress();
+  if (address != IPAddress()) {
+    printGatewayAddress(address);
+  } else if (station.ssid[0]) {
+    Serial.println("Waiting for Wi-Fi. Check the hotspot/router or type wifi to reconfigure.");
+  } else {
+    Serial.println("Wi-Fi setup required. Type wifi to configure the computer's network.");
+  }
+}
+
+bool validStationPassword(const char *password, size_t length) {
+  if (length == 0) return true; // Open network.
   if (length < 8 || length > 64) return false;
   for (size_t i = 0; i < length; ++i) {
     const unsigned char c = password[i];
@@ -125,50 +173,92 @@ bool validStationPassword(const String &password) {
   return true;
 }
 
-void mountWifiSetup() {
-  server.on("/wifi", HTTP_GET, []() {
-    if (!onSetupNetwork()) {
-      server.send(403, "text/plain; charset=utf-8", "請先連上 TrafficLight-Lab，再開啟 http://192.168.4.1/wifi。");
+bool saveWifiCredentials(const WifiCredentials &credentials) {
+  Preferences preferences;
+  if (!preferences.begin(WIFI_NAMESPACE)) return false;
+  const bool saved = preferences.putBytes(WIFI_KEY, &credentials, sizeof(credentials)) == sizeof(credentials);
+  preferences.end();
+  return saved;
+}
+
+void handleConsoleLine(const char *line, size_t length) {
+  switch (consoleStep) {
+    case ConsoleStep::Command:
+      if (strcmp(line, "wifi") == 0) {
+        pending = {};
+        consoleStep = ConsoleStep::Ssid;
+        Serial.println("Enter the 2.4 GHz Wi-Fi name (SSID), then press Enter.");
+      } else if (strcmp(line, "status") == 0) {
+        printWifiStatus();
+      } else if (length) {
+        Serial.println("USB console commands: wifi, status.");
+      }
       return;
-    }
-    String page(FPSTR(WIFI_PAGE));
-    page.replace("SETUP_TOKEN", setupToken);
-    page.replace("STATION_ADDRESS", WiFi.status() == WL_CONNECTED ? WiFi.localIP().toString() : String("尚未連線"));
-    server.sendHeader("Cache-Control", "no-store");
-    server.sendHeader("X-Frame-Options", "DENY");
-    server.send(200, "text/html; charset=utf-8", page);
-  });
-  server.on("/wifi", HTTP_POST, []() {
-    if (!onSetupNetwork() || server.arg("token") != setupToken) {
-      server.send(403, "text/plain; charset=utf-8", "請透過 TrafficLight-Lab 開啟 Wi-Fi 設定頁。");
+
+    case ConsoleStep::Ssid:
+      if (length == 0 || length >= sizeof(pending.ssid)) {
+        Serial.println("SSID must be 1-32 bytes. Enter the Wi-Fi name again.");
+        return;
+      }
+      memcpy(pending.ssid, line, length + 1);
+      consoleStep = ConsoleStep::Password;
+      Serial.println("Enter the Wi-Fi password (empty for an open network), then press Enter.");
       return;
-    }
-    if (restartPending) {
-      server.send(409, "text/plain; charset=utf-8", "ESP32 正在重新啟動。");
+
+    case ConsoleStep::Password:
+      if (!validStationPassword(line, length)) {
+        Serial.println("Use an 8-63 character password or a 64-digit hexadecimal key. Try again.");
+        return;
+      }
+      memcpy(pending.password, line, length + 1);
+      const bool saved = saveWifiCredentials(pending);
+      pending = {};
+      consoleStep = ConsoleStep::Command;
+      if (saved) {
+        Serial.println("Wi-Fi settings saved. Restarting.");
+        Serial.flush();
+        ESP.restart();
+      } else {
+        Serial.println("Could not save Wi-Fi settings. Type wifi to retry.");
+      }
       return;
+  }
+}
+
+void readConsole() {
+  static char line[sizeof(pending.password)] = {};
+  static size_t length = 0;
+  static bool invalid = false;
+  static bool afterCR = false;
+
+  // Limit work per loop so USB input cannot starve the HTTP server.
+  for (unsigned remaining = 64; remaining && Serial.available(); --remaining) {
+    const int input = Serial.read();
+    if (input < 0) break;
+    const char c = static_cast<char>(input);
+    const bool trailingLF = afterCR && c == '\n';
+    afterCR = c == '\r';
+    if (trailingLF) continue;
+    if (c == '\r' || c == '\n') {
+      if (invalid) {
+        Serial.println("Invalid input line. Enter the requested value again.");
+      } else {
+        line[length] = '\0';
+        handleConsoleLine(line, length);
+      }
+      memset(line, 0, sizeof(line));
+      length = 0;
+      invalid = false;
+    } else if (invalid) {
+      continue;
+    } else if (c == '\b' || c == '\x7f') {
+      if (length) --length;
+    } else if (input < 32 || length == sizeof(line) - 1) {
+      invalid = true;
+    } else {
+      line[length++] = c;
     }
-    const String ssid = server.arg("ssid");
-    const String password = server.arg("password");
-    if (ssid.length() == 0 || ssid.length() > 32 || ssid.length() != strlen(ssid.c_str()) || !validStationPassword(password)) {
-      server.send(400, "text/plain; charset=utf-8", "請輸入 1–32 位元組的網路名稱，以及有效的 Wi-Fi 密碼。");
-      return;
-    }
-    WifiCredentials next = {};
-    ssid.toCharArray(next.ssid, sizeof(next.ssid));
-    password.toCharArray(next.password, sizeof(next.password));
-    Preferences preferences;
-    const bool saved = preferences.begin(WIFI_NAMESPACE) &&
-      preferences.putBytes(WIFI_KEY, &next, sizeof(next)) == sizeof(next);
-    preferences.end();
-    if (!saved) {
-      server.send(500, "text/plain; charset=utf-8", "無法儲存 Wi-Fi 設定，請再試一次。");
-      return;
-    }
-    server.sendHeader("Cache-Control", "no-store");
-    server.send(200, "text/html; charset=utf-8", "<!doctype html><meta charset=utf-8><p>設定已儲存。ESP32 會重新啟動。請重新連上 TrafficLight-Lab，再<a href=/wifi>查看分配到的 IP</a>，或查看 USB 序列監視器。</p>");
-    restartPending = true;
-    savedAt = millis();
-  });
+  }
 }
 
 void startWifi() {
@@ -182,32 +272,34 @@ void startWifi() {
   station.ssid[sizeof(station.ssid) - 1] = '\0';
   station.password[sizeof(station.password) - 1] = '\0';
   WiFi.persistent(false);
-  WiFi.mode(station.ssid[0] ? WIFI_AP_STA : WIFI_AP);
-  if (WiFi.softAP(SSID, PASSWORD)) {
-    Serial.print("Setup page: http://");
-    Serial.print(WiFi.softAPIP());
-    Serial.println("/wifi");
-  } else {
-    Serial.println("Wi-Fi setup AP failed to start.");
-  }
-  char token[25];
-  snprintf(token, sizeof(token), "%08lx%08lx%08lx", static_cast<unsigned long>(esp_random()),
-           static_cast<unsigned long>(esp_random()), static_cast<unsigned long>(esp_random()));
-  setupToken = token;
+  WiFi.mode(WIFI_STA);
+  WiFi.setAutoReconnect(true);
+  Serial.println("USB console commands: wifi, status.");
   if (station.ssid[0]) {
     Serial.println("Connecting to the configured Wi-Fi network...");
-    WiFi.setAutoReconnect(true);
     WiFi.begin(station.ssid, station.password);
     lastStationAttempt = millis();
+  } else {
+    printWifiStatus();
   }
 }
 
 void setup() {
   Serial.begin(115200);
   uno.begin(9600, SERIAL_8N1, 16, 17); // RX unused; TX GPIO17 -> Uno D10.
-  startWifi();
-  mountWifiSetup();
+  initializeGatewayIdentity();
   server.on("/", HTTP_GET, []() { server.send_P(200, "text/html; charset=utf-8", PAGE); });
+  server.on("/api/gateway", HTTP_GET, []() {
+    server.sendHeader("Cache-Control", "no-store");
+    if (!gatewayId[0]) {
+      server.send(503, "text/plain", "Gateway identity unavailable");
+      return;
+    }
+    char body[96];
+    snprintf(body, sizeof(body), "{\"id\":\"%s\",\"service\":\"int4089-traffic-light\",\"version\":%u}",
+             gatewayId, GATEWAY_VERSION);
+    server.send(200, "application/json", body);
+  });
   server.on("/api/counts", HTTP_POST, []() {
     unsigned ns, ew;
     if (!readCount(server.arg("ns"), ns) || !readCount(server.arg("ew"), ew)) {
@@ -220,26 +312,33 @@ void setup() {
     uno.print("A\n"); server.send(200, "text/plain", "Accepted by ESP32");
   });
   server.onNotFound([]() { server.send(404, "text/plain", "Not found"); });
-  server.begin();
+  startWifi();
 }
 void loop() {
-  server.handleClient();
-  const unsigned long now = millis();
-  if (restartPending && now - savedAt >= 900) ESP.restart();
-  if (!station.ssid[0]) return;
-  const bool connected = WiFi.status() == WL_CONNECTED;
-  const IPAddress address = connected ? WiFi.localIP() : IPAddress();
+  readConsole();
+  const IPAddress address = stationAddress();
   if (address != reportedStationIP) {
-    reportedStationIP = address;
-    if (connected) {
-      Serial.print("Gateway on computer Wi-Fi: http://");
-      Serial.println(address);
+    stopGatewayDiscovery();
+    if (address == IPAddress()) {
+      server.stop();
+      Serial.println("Gateway Wi-Fi disconnected. Check the computer's network.");
     } else {
-      Serial.println("Gateway Wi-Fi disconnected; setup AP remains available.");
+      if (reportedStationIP == IPAddress()) server.begin();
+      printGatewayAddress(address);
+      startGatewayDiscovery();
     }
+    reportedStationIP = address;
   }
-  if (!connected && now - lastStationAttempt >= 30000) {
+  if (address != IPAddress()) {
+    if (gatewayId[0] && !discoveryStarted && millis() - lastDiscoveryAttempt >= DISCOVERY_RETRY_MS) {
+      startGatewayDiscovery();
+    }
+    server.handleClient();
+    return;
+  }
+  if (station.ssid[0] && millis() - lastStationAttempt >= WIFI_RETRY_MS) {
     WiFi.reconnect();
-    lastStationAttempt = now;
+    lastStationAttempt = millis();
   }
+  delay(1);
 }

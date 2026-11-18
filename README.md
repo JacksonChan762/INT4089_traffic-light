@@ -1,20 +1,22 @@
 # INT4089 Smart Traffic Light
 
+**English** · [繁體中文](README.zh-TW.md)
+
 This classroom model uses six LEDs to control a crossing between two one-way roads, A and B. An Arduino Uno R3 alternates the lights and runs a fixed cycle on its own. With an ESP32 connected, the Uno can give the road with the longer queue up to 10 extra seconds of green. Enter queue lengths manually, or run the browser dashboard on a computer to count model cars using a computer webcam or a phone camera.
 
 ## Download the browser camera app
 
-Choose the package for your operating system and processor from [GitHub Release v1.0.0](https://github.com/JacksonChan762/INT4089_traffic-light/releases/tag/v1.0.0). Download and extract the entire archive before launching it. Python and OpenCV are included.
+Choose the package for your operating system and processor from [GitHub Release v1.1.0](https://github.com/JacksonChan762/INT4089_traffic-light/releases/tag/v1.1.0). Download and extract the entire archive before launching it. Python and OpenCV are included.
 
 | Platform | Direct download | How to start |
 | --- | --- | --- |
-| Windows x64 | [Download ZIP](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.0.0/TrafficLight-Camera-windows-x64.zip) | Double-click `Start.cmd` in the extracted folder. |
-| Linux x64 | [Download tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.0.0/TrafficLight-Camera-linux-x64.tar.gz) | Open a terminal in the extracted folder and run `./start.sh`. |
-| Linux ARM64 | [Download tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.0.0/TrafficLight-Camera-linux-arm64.tar.gz) | Open a terminal in the extracted folder and run `./start.sh`. |
-| macOS Apple Silicon | [Download tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.0.0/TrafficLight-Camera-macos-apple-silicon.tar.gz) | Open `Start.command` or run `./Start.command` in Terminal from the extracted folder. |
-| macOS Intel | [Download tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.0.0/TrafficLight-Camera-macos-intel.tar.gz) | Open `Start.command` or run `./Start.command` in Terminal from the extracted folder. |
+| Windows x64 | [Download ZIP](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.1.0/TrafficLight-Camera-windows-x64.zip) | Double-click `Start.cmd` in the extracted folder. |
+| Linux x64 | [Download tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.1.0/TrafficLight-Camera-linux-x64.tar.gz) | Open a terminal in the extracted folder and run `./start.sh`. |
+| Linux ARM64 | [Download tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.1.0/TrafficLight-Camera-linux-arm64.tar.gz) | Open a terminal in the extracted folder and run `./start.sh`. |
+| macOS Apple Silicon | [Download tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.1.0/TrafficLight-Camera-macos-apple-silicon.tar.gz) | Open `Start.command` or run `./Start.command` in Terminal from the extracted folder. |
+| macOS Intel | [Download tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.1.0/TrafficLight-Camera-macos-intel.tar.gz) | Open `Start.command` or run `./Start.command` in Terminal from the extracted folder. |
 
-Verify your download with [SHA256SUMS.txt](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.0.0/SHA256SUMS.txt). Enter the ESP32's assigned IPv4 address when the launcher prompts you. For network setup and phone camera access, see the [browser camera guide](browser_camera/README.md).
+Verify your download with [SHA256SUMS.txt](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.1.0/SHA256SUMS.txt). The v1.1.0 launcher supports USB Wi-Fi setup and automatic ESP32 discovery with the current gateway firmware. [Browser camera guide](browser_camera/README.md)
 
 ## Hardware and wiring
 
@@ -32,7 +34,21 @@ Disconnect power before wiring. For each LED, connect the Uno pin through its ow
 | GPIO17 (TX) | D10 (RX) | One-way serial commands at 9600 baud |
 | GND | GND | Common ground |
 
-Power each board through its own USB cable. Keep the boards’ 5 V and 3.3 V supply pins separate. Leave Uno D11 and ESP32 GPIO16 disconnected to keep the Uno’s 5 V output away from the ESP32 GPIO. Use a short wire for the serial signal. The Uno firmware disables the internal 5 V pull-up on D10. If reception is unreliable, use a UART-compatible 3.3 V to 5 V level shifter.
+Power each board through its own USB cable. Keep the boards’ 5 V and 3.3 V rails separate. Leave Uno D11 and ESP32 GPIO16 disconnected. A short direct wire can be used for initial bench tests. The Uno firmware disables the internal 5 V pull-up on D10.
+
+### Add a UART level shifter
+
+Use a non-inverting level shifter that supports 3.3 V and 5 V push-pull UART signals. Disconnect USB power from both boards and remove the direct GPIO17-to-D10 jumper before inserting the shifter.
+
+| Source | Destination |
+| --- | --- |
+| ESP32 **3V3** | Shifter low-voltage supply (`LV` on a module with LV and HV labels) |
+| Uno **5V** | Shifter high-voltage supply (`HV` on a module with LV and HV labels) |
+| ESP32 GND and Uno GND | Shifter GND, all on the same ground junction |
+| ESP32 **GPIO17 TX** | Input on one 3.3 V channel |
+| Matching 5 V output channel | Uno **D10 RX** |
+
+Check the module’s pinout before applying power. On a shifter with direction or enable pins, set the channel to send from the 3.3 V input to the 5 V output and enable it according to the module’s datasheet. Leave Uno D11 and ESP32 GPIO16 disconnected.
 
 ## Build and upload
 
@@ -52,18 +68,20 @@ pio run -e uno -t upload --upload-port /dev/cu.usbmodemXXXX
 pio run -e esp32 -t upload --upload-port /dev/cu.usbserial-XXXX
 ```
 
-The Uno firmware is in [arduino_uno](arduino_uno), including the timing logic in [TrafficController.h](arduino_uno/TrafficController.h). The ESP32 can join the computer's Wi-Fi network, serves a fallback manual page and forwards commands from [esp32_gateway.cpp](esp32_gateway/esp32_gateway.cpp).
+The Uno firmware is in [arduino_uno](arduino_uno), including the timing logic in [TrafficController.h](arduino_uno/TrafficController.h). The ESP32 joins the same Wi-Fi router as the computer in station mode, serves a manual page on the local network and forwards commands from [esp32_gateway.cpp](esp32_gateway/esp32_gateway.cpp).
 
 Serial port names vary by host. Use the actual COM port on Windows or the actual `/dev/ttyUSB*` or `/dev/ttyACM*` port on Linux.
 
 ## Use the browser dashboard
 
-Run the dashboard on a Mac, Linux PC or Windows PC. The ESP32 joins the computer's Wi-Fi hotspot or a shared router. Open the dashboard on the computer to use its built-in or USB camera, or open the computer's HTTPS address on an Android phone or iPhone to use the phone camera. The computer processes the images and sends the counts to the ESP32. See the [browser camera setup and calibration guide](browser_camera/README.md).
+Connect the Mac, Linux PC or Windows PC to an existing Wi-Fi router and configure the ESP32 over USB to join the same router's 2.4 GHz Wi-Fi. Open the dashboard on the computer to use its built-in or USB camera. For an Android phone or iPhone camera, join the phone to the same router and open the computer's HTTPS dashboard. The computer processes the images and sends the counts to the ESP32. The current dashboard discovers gateways on the local network and pairs automatically when it finds one board. [Browser camera setup and calibration guide](browser_camera/README.md)
+
+In the v1.1.0 launcher, connect the ESP32 over USB, close any serial monitor, and type `W` at the prompt to configure Wi-Fi. If the board is already configured, press Enter for the computer camera or enter the computer's LAN IPv4 address for phone access. [USB Wi-Fi setup](browser_camera/README.md#join-the-computers-network)
 
 ## Try the direct manual controls
 
-1. Power both boards. Join **TrafficLight-Lab** on your phone using the password **traffic123**. Stay connected if the phone reports that the network has no internet access.
-2. Open **http://192.168.4.1**. The ESP32 also prints its address to the USB serial monitor at 115200 baud.
+1. Power both boards. Configure the ESP32 over USB to join the router's 2.4 GHz Wi-Fi, and connect the browser device to the same router. [USB Wi-Fi setup](browser_camera/README.md#join-the-computers-network)
+2. Open the `http://` address printed by the ESP32's USB serial monitor at 115200 baud.
 3. On the Chinese-language page, enter **8** in the first field (road A) and **3** in the second (road B). Press the first button to apply the counts. Keep the page in the foreground so it can resend them every second. Press the same button again after editing either field.
 4. Watch the next green phase for each road. With these counts, A gets **20 seconds** and B gets **10 seconds**. The page confirms receipt at the ESP32. To verify the Uno’s response, watch the LEDs or check the phase and duration in its USB serial monitor at 115200 baud.
 5. Press the second button to return to fixed timing. If you close the page or disconnect, the Uno falls back to fixed timing five seconds after the last count.

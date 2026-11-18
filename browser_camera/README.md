@@ -1,17 +1,40 @@
 # Browser camera and PC processing
 
+**English** · [繁體中文](README.zh-TW.md)
+
 The dashboard runs on a Mac, Linux PC or Windows PC. Open the dashboard on the device whose camera you want to use. A computer browser can select an internal webcam or USB camera. A phone browser can select a built-in camera and sends compressed frames over Wi-Fi to the same dashboard server. The computer uses OpenCV to count cars and sends the counts to the ESP32. The ESP32 forwards the commands to the Uno over UART.
 
 ## Join the computer's network
 
-1. Update the firmware using the [build and upload instructions](../README.md#build-and-upload). On the computer, start a **2.4 GHz** Wi-Fi hotspot with WPA2, or connect the computer to the same local router the ESP32 will join. If the computer cannot start a hotspot while using its current network connection, use a shared router. Avoid guest networks that isolate devices.
-2. Temporarily connect a phone or computer to **TrafficLight-Lab** using the password **traffic123** and open **http://192.168.4.1/wifi**. Enter the hotspot or router's Wi-Fi name and password. The ESP32 saves them, restarts and joins the network.
-3. Get the ESP32's assigned address from **Gateway on computer Wi-Fi** in the ESP32's USB serial monitor at **115200 baud**. You can also reconnect to **TrafficLight-Lab** and reopen the setup page to see the address. Switch the computer and phone back to the hotspot or shared router for normal use.
-4. From the computer, open `http://ESP32_IP/` to verify that the board is reachable. Use that same address with the dashboard's `--esp` option. If the address changes after a restart, use the new address. Choose a hotspot or router subnet other than `192.168.4.0/24`, which is used for ESP32 setup and fallback.
+1. Update the ESP32 using the [build and upload instructions](../README.md#build-and-upload). Connect the computer to an existing Wi-Fi router. The router must offer **2.4 GHz Wi-Fi** for the ESP32 and let devices on its local network communicate.
+2. Connect the ESP32 by USB and close any open serial monitor. Open `Start.command` on macOS, `Start.cmd` on Windows, or `./start.sh` on Linux from the v1.1.0 package.
+3. At the launcher prompt, type `W` and press Enter. Select the ESP32's serial port if more than one port is listed. Enter the router's 2.4 GHz Wi-Fi name (SSID) and password. The password stays hidden as you type, and the launcher sends the credentials to the board over USB.
+4. The ESP32 saves the settings and restarts. The launcher opens the computer dashboard and discovers the board when it joins the router. Once configured, press Enter at the launcher prompt to start the computer camera dashboard. For phone camera access, enter the computer's LAN IPv4 address at launch. [Phone camera setup](#use-a-phone-camera-in-the-browser)
+
+### Configure Wi-Fi from the serial monitor
+
+You can also configure the ESP32 with PlatformIO's USB serial monitor.
+
+1. Find the board's port with `pio device list`, then open the serial monitor. Replace `ESP32_PORT` with that port, such as `COM3` on Windows or `/dev/cu.usbserial-XXXX` on macOS.
+
+   ```sh
+   pio device monitor -e esp32 --port ESP32_PORT --filter send_on_enter
+   ```
+
+2. Type `wifi` and press Enter. Enter the router's 2.4 GHz Wi-Fi name (SSID), then its password when prompted. Press Enter after each value and keep the monitor's local echo disabled. The ESP32 saves the settings, restarts and joins that network.
+3. Look for **Gateway on computer Wi-Fi** in the USB serial monitor at **115200 baud**. Type `status` and press Enter to display the address again. Open the ESP32's HTTP URL from the computer to check connectivity, or use it with `--esp` for manual pairing.
+
+## Find and pair an ESP32
+
+The computer running the dashboard discovers ESP32 gateways on its local network using multicast DNS (mDNS). Use the updated gateway firmware and keep the dashboard open while the board joins Wi-Fi. The dashboard pairs with a single detected ESP32. When it lists multiple boards, select the one you want to control from the ESP32 menu.
+
+The dashboard remembers the chosen device during the session and finds it again if its IP address changes. After a connection loss or selection change, start sending counts again from the dashboard. If the computer asks for permission to access the local network, allow it. For older firmware or a network that blocks multicast, start the dashboard from a terminal with `--esp http://192.168.1.30`, substituting the ESP32's assigned IPv4 address.
 
 ## Portable packages
 
-Use the archive for your operating system and processor. Extract the whole archive and open the supplied launcher. Its bundled Python and OpenCV run on the computer. Enter the ESP32 address when prompted. For a phone camera, enter the computer's LAN address and provide the trusted certificate and key described below. [Package instructions](packaging/README.txt)
+Use the archive for your operating system and processor. Extract the whole archive and open the supplied launcher. Its bundled Python and OpenCV run on the computer. In the v1.1.0 launcher, type `W` at the launcher prompt for USB Wi-Fi setup, press Enter for the computer camera, or enter the computer's LAN IPv4 address and provide the trusted certificate and key for a phone camera. Both camera modes discover ESP32 gateways automatically. [Package instructions](packaging/README.txt)
+
+Download v1.1.0 for your operating system and processor. [Release downloads](../README.md#download-the-browser-camera-app)
 
 To build the five archives from source, run `python3.12 browser_camera/packaging/build.py` from the project root with Python 3.12 and pip. The archives and SHA-256 checksums appear under `dist/`.
 
@@ -45,10 +68,10 @@ On Windows 11 ARM with both ARM64 and x64 Python installed, invoke the x64 Pytho
 
 ## Use the computer's camera
 
-Start the web dashboard. Replace `192.168.137.30` with the ESP32's assigned address.
+Start the web dashboard with automatic ESP32 discovery.
 
 ```sh
-.venv-browser/bin/python -m browser_camera.server --esp http://192.168.137.30
+.venv-browser/bin/python -m browser_camera.server
 ```
 
 On Windows, use `.\.venv-browser\Scripts\python.exe` in place of `.venv-browser/bin/python`. Open **http://127.0.0.1:8000/** on the same computer. Press **開啟相機** and grant camera access. Use the **相機** menu to switch between available cameras after granting access.
@@ -57,12 +80,12 @@ On Windows, use `.\.venv-browser\Scripts\python.exe` in place of `.venv-browser/
 
 The phone needs to trust the HTTPS certificate for the computer's network address. A browser treats the phone's `localhost` as the phone itself. Use the computer's LAN URL for both the phone camera and the computer camera when running in this mode. [W3C camera API](https://www.w3.org/TR/mediacapture-streams/#navigator-interface-extensions)
 
-1. Connect the phone to the computer's hotspot or shared router. Find the computer's IPv4 address on that network in the network settings. In these examples the computer is **192.168.137.1** and the ESP32 is **192.168.137.30**.
+1. Connect the phone to the same Wi-Fi router as the computer and ESP32. Find the computer's IPv4 address on that network in the computer's network settings. In these examples the computer is **192.168.1.20**. Its dashboard discovers the ESP32 on the same network.
 2. Install [mkcert](https://github.com/FiloSottile/mkcert) on the computer and create a certificate for its IP address. Run the commands from the project root and substitute the computer's actual address.
 
    ```sh
    mkcert -install
-   mkcert -cert-file traffic-cert.pem -key-file traffic-key.pem 192.168.137.1
+   mkcert -cert-file traffic-cert.pem -key-file traffic-key.pem 192.168.1.20
    mkcert -CAROOT
    ```
 
@@ -70,10 +93,10 @@ The phone needs to trust the HTTPS certificate for the computer's network addres
 4. Start the dashboard in HTTPS mode. Use `.\.venv-browser\Scripts\python.exe` on Windows. If the firewall prompts, allow the dashboard on the private network.
 
    ```sh
-   .venv-browser/bin/python -m browser_camera.server --bind 192.168.137.1 --esp http://192.168.137.30 --cert traffic-cert.pem --key traffic-key.pem
+   .venv-browser/bin/python -m browser_camera.server --bind 192.168.1.20 --cert traffic-cert.pem --key traffic-key.pem
    ```
 
-5. Open **https://192.168.137.1:8000/** on the phone in Chrome on Android or Safari on iPhone. Press **開啟相機**, allow camera access and choose the desired lens. If the computer's address changes, generate a certificate for the new address and update `--bind`.
+5. Open **https://192.168.1.20:8000/** on the phone in Chrome on Android or Safari on iPhone. Press **開啟相機**, allow camera access and choose the desired lens. If the computer's address changes, generate a certificate for the new address and update `--bind`.
 
 ## Calibrate and send counts
 

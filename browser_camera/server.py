@@ -8,11 +8,13 @@ import re
 import ssl
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from socketserver import TCPServer
 from threading import Thread
 from urllib.parse import parse_qs, urlencode, urlsplit
 import webbrowser
 
 from .camera import CAMERA_ROUTES, MAX_JPEG_BYTES, CameraAnalysis, CameraError
+from .discovery import GatewayDiscovery, gateway_matches
 
 
 ASSETS = {
@@ -55,6 +57,8 @@ class CameraHandler(BaseHTTPRequestHandler):
         super().setup()
 
     def log_request(self, code='-', size='-'):
+        if self.path == '/api/gateways' and str(code) == '200':
+            return
         if self.path not in CAMERA_ROUTES or str(code) not in ('200', '409'):
             super().log_request(code, size)
 
@@ -85,6 +89,10 @@ class CameraHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.request_origin() is None:
             self.reply(400, b'Unexpected host')
+            return
+        if self.path == '/api/gateways':
+            body = json.dumps(self.server.gateway_status()).encode('utf-8')
+            self.reply(200, body, 'application/json; charset=utf-8')
             return
         if self.path not in ASSETS:
             self.reply(404, b'Not found')
@@ -147,7 +155,19 @@ class CameraHandler(BaseHTTPRequestHandler):
             self.reply(400, b'Fixed timing takes no body')
             return
 
-        connection = http.client.HTTPConnection(*self.server.gateway, timeout=2)
+        gateway = self.server.gateway
+        if self.server.discovery is not None:
+            identifiers = self.headers.get_all('X-Gateway-ID', [])
+            if len(identifiers) != 1 or not identifiers[0]:
+                self.reply(409, b'Choose an ESP32 on the dashboard first.')
+                return
+            selected = self.server.discovery.get(identifiers[0])
+            if selected is None or not gateway_matches(selected):
+                self.reply(503, b'The paired ESP32 is offline. Waiting for it to reconnect.')
+                return
+            gateway = selected.endpoint
+
+        connection = http.client.HTTPConnection(*gateway, timeout=2)
         try:
             connection.request('POST', self.path, body, {
                 'Content-Type': 'application/x-www-form-urlencoded',
@@ -170,7 +190,25 @@ class CameraServer(ThreadingHTTPServer):
         self.gateway = gateway
         self.tls = tls
         self.camera = CameraAnalysis()
+        self.discovery = None
         super().__init__((bind, port), CameraHandler)
+        if gateway is None:
+            self.discovery = GatewayDiscovery()
+
+    def server_bind(self):
+        # The dashboard binds a numeric IPv4 address and needs no reverse DNS lookup.
+        TCPServer.server_bind(self)
+        self.server_name, self.server_port = self.server_address
+
+    def gateway_status(self):
+        if self.discovery is not None:
+            return self.discovery.status()
+        return {'mode': 'manual', 'address': self.gateway[0], 'gateways': []}
+
+    def server_close(self):
+        if self.discovery is not None:
+            self.discovery.close()
+        super().server_close()
 
     def get_request(self):
         connection, address = super().get_request()
@@ -203,8 +241,8 @@ def make_server(bind, port, gateway, cert=None, key=None):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--esp', type=gateway_address, default='http://192.168.4.1',
-                        help='HTTP IPv4 URL of the ESP32 gateway')
+    parser.add_argument('--esp', type=gateway_address,
+                        help='ESP32 HTTP IPv4 URL. With no address, discover gateways on the local network.')
     parser.add_argument('--bind', default='127.0.0.1',
                         help='IPv4 address of this computer to listen on (default: 127.0.0.1)')
     parser.add_argument('--port', type=int, default=8000)
