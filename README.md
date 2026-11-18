@@ -2,6 +2,20 @@
 
 This classroom model uses six LEDs to control a crossing between two one-way roads, A and B. An Arduino Uno R3 alternates the lights and runs a fixed cycle on its own. With an ESP32 connected, the Uno can give the road with the longer queue up to 10 extra seconds of green. Enter queue lengths manually, or run the browser dashboard on a computer to count model cars using a computer webcam or a phone camera.
 
+## Download the browser camera app
+
+Choose the package for your operating system and processor from [GitHub Release v1.0.0](https://github.com/JacksonChan762/INT4089_traffic-light/releases/tag/v1.0.0). Download and extract the entire archive before launching it. Python and OpenCV are included.
+
+| Platform | Direct download | How to start |
+| --- | --- | --- |
+| Windows x64 | [Download ZIP](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.0.0/TrafficLight-Camera-windows-x64.zip) | Double-click `Start.cmd` in the extracted folder. |
+| Linux x64 | [Download tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.0.0/TrafficLight-Camera-linux-x64.tar.gz) | Open a terminal in the extracted folder and run `./start.sh`. |
+| Linux ARM64 | [Download tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.0.0/TrafficLight-Camera-linux-arm64.tar.gz) | Open a terminal in the extracted folder and run `./start.sh`. |
+| macOS Apple Silicon | [Download tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.0.0/TrafficLight-Camera-macos-apple-silicon.tar.gz) | Open `Start.command` or run `./Start.command` in Terminal from the extracted folder. |
+| macOS Intel | [Download tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.0.0/TrafficLight-Camera-macos-intel.tar.gz) | Open `Start.command` or run `./Start.command` in Terminal from the extracted folder. |
+
+Verify your download with [SHA256SUMS.txt](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.0.0/SHA256SUMS.txt). Enter the ESP32's assigned IPv4 address when the launcher prompts you. For network setup and phone camera access, see the [browser camera guide](browser_camera/README.md).
+
 ## Hardware and wiring
 
 Use an Arduino Uno R3, a classic ESP32-WROOM-32 development board with GPIO16 and GPIO17 available, two USB cables, jumper wires, six low-current LEDs (two each of red, yellow and green), and six 1 kΩ resistors. Check the pinout and PlatformIO board setting before using an ESP32-C3, S3, WROVER or ESP32-CAM.
@@ -89,6 +103,6 @@ On the model, check the fixed cycle with the Uno alone. Then connect the gateway
 ## References
 
 - [Espressif Wi-Fi API](https://docs.espressif.com/projects/arduino-esp32/en/latest/api/wifi.html)
-- [Espressif WebServer example](https://github.com/espressif/arduino-esp32/blob/master/libraries/WebServer/examples/WebServer/WebServer.cpp)
+- [Espressif WebServer example](https://github.com/espressif/arduino-esp32/blob/master/libraries/WebServer/examples/WebServer/WebServer.ino)
 - [Arduino SoftwareSerial](https://docs.arduino.cc/learn/built-in-libraries/software-serial)
 - [PlatformIO source file filters](https://docs.platformio.org/en/stable/projectconf/sections/env/options/build/build_src_filter.html)
