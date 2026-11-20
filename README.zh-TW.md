@@ -1,6 +1,6 @@
 # INT4089 智慧交通號誌
 
-[English](README.md) · **繁體中文**
+[English](README.md) · **繁體中文** · [MIT 授權](LICENSE)
 
 這個課堂模型用 Arduino Uno R3 控制 A、B 兩條道路的六顆號誌 LED。電腦控制台透過鏡頭計算排隊車量，再由 ESP32 將車數送給 Uno。你也可以手動輸入車數。Uno 會為車輛較多的一道增加綠燈時間。
 
