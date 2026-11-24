@@ -1,6 +1,6 @@
 # INT4089 Smart Traffic Light Development Log
 
-Development period **18–20 November 2026** · All times are Taipei time (UTC+8).
+Code development period **2–20 November 2026** · All times are Hong Kong time (UTC+8).
 
 This classroom prototype controls two crossing one-way roads. A camera supplies video to a computer, which estimates the number of model cars waiting on each road. An ESP32 forwards the counts to an Arduino Uno R3. The Uno drives two sets of red, yellow and green LEDs and extends the next green for the busier road. The dated bench and development notes record observations from the prototype sessions. [Project README][project]
 
