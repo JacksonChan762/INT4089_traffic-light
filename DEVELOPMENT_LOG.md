@@ -44,7 +44,7 @@ Initial prototype notes, 18 Nov. · Browser and bench development notes, 19 Nov.
 | **19 Nov, 00:47–02:53** | Added the browser camera dashboard, moved detection into the browser host and packaged Python and OpenCV for Windows x64, macOS Intel and Apple Silicon, and Linux x64 and ARM64. Published v1.0.0. Added the USB Wi-Fi wizard and same-network discovery, then published v1.1.0. Both firmware targets built, 22 browser-camera tests passed, and the five-platform CI run succeeded. Browser and bench development notes, 19 Nov. · [v1.0.0][release-100] · [v1.1.0][release-110] · [Five-platform CI][ci-110] |
 | **19 Nov, 02:54–04:42** | Flashed the ESP32 and verified the written firmware digest. Used the USB wizard to join the router and confirmed that the dashboard automatically paired with the same board. Built the simulator, added a stopped-queue mode for calibration and checked one-way UART with known manual counts. Added the English ESP32 page and Uno State panel. Published the Test Lab and Uno State in v1.2.0. Browser and bench development notes, 19 Nov. · [v1.2.0][release-120] |
 | **19 Nov, 04:57–05:31** | Translated the computer dashboard into English for v1.2.1. Built a Windows x64 installer and added its checksum to the release. Windows CI passed the install, dashboard startup and uninstall checks. Updated the English and Traditional Chinese guides with bench and camera-test photos and added an MIT license. [v1.2.1][release-121] · [Windows installer CI][ci-windows] · [Documentation update][docs-commit] |
-| **20 Nov** | Added visible MIT license links to both README headers and made the repository public. [README update][license-commit] |
+
 
 ### 3D prototype model view · 原型 3D 模型圖
 
