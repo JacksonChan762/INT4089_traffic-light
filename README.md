@@ -1,6 +1,6 @@
 # INT4089 Smart Traffic Light
 
-**English** · [繁體中文](README.zh-TW.md) · [MIT License](LICENSE)
+**English** · [繁體中文](README.zh-TW.md) · [MIT License](LICENSE) · [Development Log](DEVELOPMENT_LOG.md)
 
 A classroom traffic-light model for two roads. The Arduino Uno R3 drives six LEDs. An ESP32 receives car counts over Wi‑Fi and forwards them to the Uno, which gives the busier road a longer green light. Enter counts by hand or use the browser dashboard to count model cars with a camera.
 
