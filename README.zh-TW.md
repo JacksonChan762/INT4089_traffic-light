@@ -12,17 +12,17 @@
 
 ## 下載瀏覽器相機控制台
 
-Windows x64 使用 EXE 安裝程式。Linux 與 macOS 請選擇符合處理器的套件，再將整個壓縮檔解壓縮。各套件均包含 Python 與 OpenCV。 [GitHub Release v1.3.0](https://github.com/JacksonChan762/INT4089_traffic-light/releases/tag/v1.3.0)
+Windows x64 使用 EXE 安裝程式。Linux 與 macOS 請選擇符合處理器的套件，再將整個壓縮檔解壓縮。各套件均包含 Python 與 OpenCV。 [GitHub Release v1.3.1](https://github.com/JacksonChan762/INT4089_traffic-light/releases/tag/v1.3.1)
 
 | 平台 | 直接下載 | 啟動方法 |
 | --- | --- | --- |
-| Windows x64 安裝版 | [下載安裝程式 EXE](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.3.0/TrafficLight-Camera-windows-x64-setup.exe) | 以一般 Windows 使用者帳戶執行安裝程式，完成後從開始功能表開啟 **Traffic Light Camera**。 |
-| Linux x64 | [下載 tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.3.0/TrafficLight-Camera-linux-x64.tar.gz) | 在解壓後的資料夾開啟終端機，執行 `./start.sh`。 |
-| Linux ARM64 | [下載 tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.3.0/TrafficLight-Camera-linux-arm64.tar.gz) | 在解壓後的資料夾開啟終端機，執行 `./start.sh`。 |
-| macOS Apple Silicon | [下載 tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.3.0/TrafficLight-Camera-macos-apple-silicon.tar.gz) | 在解壓後的資料夾開啟 `Start.command`，或在終端機執行 `./Start.command`。 |
-| macOS Intel | [下載 tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.3.0/TrafficLight-Camera-macos-intel.tar.gz) | 在解壓後的資料夾開啟 `Start.command`，或在終端機執行 `./Start.command`。 |
+| Windows x64 安裝版 | [下載安裝程式 EXE](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.3.1/TrafficLight-Camera-windows-x64-setup.exe) | 以一般 Windows 使用者帳戶執行安裝程式，完成後從開始功能表開啟 **Traffic Light Camera**。 |
+| Linux x64 | [下載 tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.3.1/TrafficLight-Camera-linux-x64.tar.gz) | 在解壓後的資料夾開啟終端機，執行 `./start.sh`。 |
+| Linux ARM64 | [下載 tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.3.1/TrafficLight-Camera-linux-arm64.tar.gz) | 在解壓後的資料夾開啟終端機，執行 `./start.sh`。 |
+| macOS Apple Silicon | [下載 tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.3.1/TrafficLight-Camera-macos-apple-silicon.tar.gz) | 在解壓後的資料夾開啟 `Start.command`，或在終端機執行 `./Start.command`。 |
+| macOS Intel | [下載 tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.3.1/TrafficLight-Camera-macos-intel.tar.gz) | 在解壓後的資料夾開啟 `Start.command`，或在終端機執行 `./Start.command`。 |
 
-請用對應的 SHA-256 校驗碼驗證下載檔案。 [Windows 安裝程式校驗碼](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.3.0/TrafficLight-Camera-windows-x64-setup.exe.sha256) · [Linux 與 macOS 套件校驗碼清單](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.3.0/SHA256SUMS.txt)
+請用對應的 SHA-256 校驗碼驗證下載檔案。 [Windows 安裝程式校驗碼](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.3.1/TrafficLight-Camera-windows-x64-setup.exe.sha256) · [Linux 與 macOS 套件校驗碼清單](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.3.1/SHA256SUMS.txt)
 
 ## 快速開始
 
@@ -49,7 +49,7 @@ Windows x64 使用 EXE 安裝程式。Linux 與 macOS 請選擇符合處理器�
 
 ## 查看燈號時間紀錄
 
-**Light timing log** 顯示最近 60 個已完成的燈號階段，包括 Uno 開機後開始該階段的時間，以及實際持續秒數。關閉網頁後，ESP32 仍會繼續收集紀錄。任一塊板重新啟動後會重新記錄。請使用 v1.3.0 或更新版本的相機控制台，更新兩塊板的韌體，並接上雙向 UART。
+**Light timing log** 以 A、B 兩列顯示最近六個已完成的燈號階段。展開 **Full history** 可查看最多 60 筆紀錄，包括 Uno 開機後開始該階段的時間，以及實際持續秒數。關閉網頁後，ESP32 仍會繼續收集紀錄。任一塊板重新啟動後會重新記錄。v1.3.1 相機控制台適用於 v1.3.0 的兩塊板韌體和雙向 UART 接線。
 
 ## 硬體與接線
 

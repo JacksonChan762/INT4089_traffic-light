@@ -24,9 +24,10 @@ ESP32 Wi-Fi setup
   serial monitor, then type W at the launcher prompt and follow the prompts.
 
 Light timing log
-  The dashboard shows the latest completed signal phases and their actual
-  durations. Update both boards and connect the two-way UART through a level
-  shifter. The ESP32 also shows the log in its own control page.
+  Read the latest six completed phases across the Road A and Road B rows.
+  Open Full history for exact start times and durations. Update both boards
+  and connect the two-way UART through a level shifter. The ESP32 also shows
+  the log in its own control page.
   https://github.com/JacksonChan762/INT4089_traffic-light#hardware-and-wiring
 
 Computer camera
