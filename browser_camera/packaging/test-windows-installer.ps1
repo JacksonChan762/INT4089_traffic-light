@@ -84,14 +84,15 @@ try {
 
     $dashboard = Invoke-WebRequest -UseBasicParsing -Uri "$baseUrl/" -TimeoutSec 5
     if ($dashboard.StatusCode -ne 200 -or $dashboard.Content -notmatch '<html lang="en"' -or
-        $dashboard.Content -notmatch 'Camera counting' -or $dashboard.Content -notmatch 'href="\./traffic-test"') {
-        throw 'The installed camera host did not serve the English dashboard.'
+        $dashboard.Content -notmatch 'Camera counting' -or $dashboard.Content -notmatch 'Light timing log' -or
+        $dashboard.Content -notmatch 'href="\./traffic-test"') {
+        throw 'The installed camera host did not serve the dashboard with the light timing log.'
     }
     $simulator = Invoke-WebRequest -UseBasicParsing -Uri "$baseUrl/traffic-test" -TimeoutSec 5
     if ($simulator.StatusCode -ne 200 -or $simulator.Content -notmatch 'Traffic Light Test Lab') {
         throw 'The installed camera host did not serve the traffic simulator.'
     }
-    Write-Host 'Installed Start menu shortcut, launcher help, English dashboard and simulator verified.'
+    Write-Host 'Installed shortcut, launcher help, light timing log and simulator verified.'
 } finally {
     if ($null -ne $server -and -not $server.HasExited) {
         Stop-Process -InputObject $server -Force

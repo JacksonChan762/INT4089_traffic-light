@@ -9,6 +9,8 @@ const gatewaySelect = $("gateway-select");
 const defaultCamera = source.options[0].textContent;
 const roads = [null, null];
 const colors = ["#ffce4c", "#70d8ff"];
+const phases = ["All red before Road A", "Road A green", "Road A yellow",
+  "All red before Road B", "Road B green", "Road B yellow"];
 const secureCamera = window.isSecureContext && navigator.mediaDevices?.getUserMedia;
 
 let stream = null;
@@ -36,6 +38,9 @@ let soleCandidateId = null;
 let gatewayPollFailed = false;
 let pollingGateways = false;
 let renderedGateways = "";
+let phaseLogGateway;
+let phaseLogRequest;
+let renderedPhases = "";
 
 function status(id, message) {
   const element = $(id);
@@ -89,6 +94,7 @@ function renderGateways() {
   }
   status("gateway-status", message);
   updateControls();
+  void refreshPhaseLog();
 }
 
 async function refreshGateways() {
@@ -123,6 +129,55 @@ async function refreshGateways() {
     stopGatewayCommands("Stopped sending counts to the previous ESP32. Start sending again to continue.");
   }
   renderGateways();
+}
+
+async function refreshPhaseLog() {
+  const gateway = activeGateway();
+  const key = gateway?.id ?? gateway?.address;
+  if (key !== phaseLogGateway) {
+    phaseLogGateway = key;
+    phaseLogRequest?.abort();
+    phaseLogRequest = undefined;
+    renderedPhases = "";
+    $("phase-log-rows").replaceChildren();
+    $("phase-log").hidden = true;
+    status("phase-log-status", key ? "Reading the phase log…" : "Connect to an ESP32 to see the light timing log.");
+  }
+  if (!key || document.hidden || phaseLogRequest) return;
+
+  const controller = new AbortController();
+  phaseLogRequest = controller;
+  const timer = setTimeout(() => controller.abort(), 3000);
+  try {
+    const response = await fetch("/api/phase-log", {
+      headers: gateway.id ? { "X-Gateway-ID": gateway.id } : {}, signal: controller.signal,
+    });
+    if (!response.ok) throw new Error(await response.text());
+    const log = await response.json();
+    if (controller.signal.aborted) return;
+    const signature = JSON.stringify(log.phases);
+    if (signature !== renderedPhases) {
+      const rows = log.phases.map(entry => {
+        const row = document.createElement("tr");
+        for (const value of [phases[entry.phase], (entry.started_ms / 1000).toFixed(2) + " s",
+          (entry.duration_ms / 1000).toFixed(2) + " s"]) row.insertCell().textContent = value;
+        return row;
+      });
+      $("phase-log-rows").replaceChildren(...rows);
+      $("phase-log").hidden = rows.length === 0;
+      renderedPhases = signature;
+    }
+    const message = !log.uno_online ? "Uno log unavailable. Check the firmware and the serial return wire." :
+      !log.phases.length ? "Waiting for the first completed phase." : "Latest completed phases from the Uno.";
+    status("phase-log-status", log.missed ? `${message} Missed phases: ${log.missed}.` : message);
+  } catch (error) {
+    if (phaseLogRequest === controller) {
+      status("phase-log-status", error.name === "AbortError" ? "ESP32 phase log timed out. Retrying…" : error.message);
+    }
+  } finally {
+    clearTimeout(timer);
+    if (phaseLogRequest === controller) phaseLogRequest = undefined;
+  }
 }
 
 async function post(path, body = new URLSearchParams(), headers = {}) {

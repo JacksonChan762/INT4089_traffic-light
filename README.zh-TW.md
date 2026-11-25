@@ -12,23 +12,23 @@
 
 ## 下載瀏覽器相機控制台
 
-Windows x64 使用 EXE 安裝程式。Linux 與 macOS 請選擇符合處理器的套件，再將整個壓縮檔解壓縮。各套件均包含 Python 與 OpenCV。 [GitHub Release v1.2.1](https://github.com/JacksonChan762/INT4089_traffic-light/releases/tag/v1.2.1)
+Windows x64 使用 EXE 安裝程式。Linux 與 macOS 請選擇符合處理器的套件，再將整個壓縮檔解壓縮。各套件均包含 Python 與 OpenCV。 [GitHub Release v1.3.0](https://github.com/JacksonChan762/INT4089_traffic-light/releases/tag/v1.3.0)
 
 | 平台 | 直接下載 | 啟動方法 |
 | --- | --- | --- |
-| Windows x64 安裝版 | [下載安裝程式 EXE](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.1/TrafficLight-Camera-windows-x64-setup.exe) | 以一般 Windows 使用者帳戶執行安裝程式，完成後從開始功能表開啟 **Traffic Light Camera**。 |
-| Linux x64 | [下載 tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.1/TrafficLight-Camera-linux-x64.tar.gz) | 在解壓後的資料夾開啟終端機，執行 `./start.sh`。 |
-| Linux ARM64 | [下載 tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.1/TrafficLight-Camera-linux-arm64.tar.gz) | 在解壓後的資料夾開啟終端機，執行 `./start.sh`。 |
-| macOS Apple Silicon | [下載 tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.1/TrafficLight-Camera-macos-apple-silicon.tar.gz) | 在解壓後的資料夾開啟 `Start.command`，或在終端機執行 `./Start.command`。 |
-| macOS Intel | [下載 tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.1/TrafficLight-Camera-macos-intel.tar.gz) | 在解壓後的資料夾開啟 `Start.command`，或在終端機執行 `./Start.command`。 |
+| Windows x64 安裝版 | [下載安裝程式 EXE](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.3.0/TrafficLight-Camera-windows-x64-setup.exe) | 以一般 Windows 使用者帳戶執行安裝程式，完成後從開始功能表開啟 **Traffic Light Camera**。 |
+| Linux x64 | [下載 tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.3.0/TrafficLight-Camera-linux-x64.tar.gz) | 在解壓後的資料夾開啟終端機，執行 `./start.sh`。 |
+| Linux ARM64 | [下載 tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.3.0/TrafficLight-Camera-linux-arm64.tar.gz) | 在解壓後的資料夾開啟終端機，執行 `./start.sh`。 |
+| macOS Apple Silicon | [下載 tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.3.0/TrafficLight-Camera-macos-apple-silicon.tar.gz) | 在解壓後的資料夾開啟 `Start.command`，或在終端機執行 `./Start.command`。 |
+| macOS Intel | [下載 tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.3.0/TrafficLight-Camera-macos-intel.tar.gz) | 在解壓後的資料夾開啟 `Start.command`，或在終端機執行 `./Start.command`。 |
 
-請用對應的 SHA-256 校驗碼驗證下載檔案。 [Windows 安裝程式校驗碼](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.1/TrafficLight-Camera-windows-x64-setup.exe.sha256) · [Linux 與 macOS 套件校驗碼清單](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.1/SHA256SUMS.txt)
+請用對應的 SHA-256 校驗碼驗證下載檔案。 [Windows 安裝程式校驗碼](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.3.0/TrafficLight-Camera-windows-x64-setup.exe.sha256) · [Linux 與 macOS 套件校驗碼清單](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.3.0/SHA256SUMS.txt)
 
 ## 快速開始
 
-1. 依下方指示接線並燒錄 Uno 和 ESP32。將電腦接到提供 2.4 GHz Wi-Fi 的路由器。 [硬體與接線](#硬體與接線) · [編譯與燒錄](#編譯與燒錄)
-2. 用 USB 將 ESP32 接到電腦，關閉序列監視器，再啟動套件。首次使用時，在提示輸入 `W`，讓 ESP32 加入同一台路由器。 [USB Wi-Fi 設定方式](browser_camera/README.zh-TW.md#加入電腦的網路)
-3. ESP32 已設定後，在啟動程式按 Enter 開啟英文控制台，按 **Open camera** 並允許瀏覽器使用鏡頭。控制台找到一台 ESP32 時會自動配對。如果找到多台，請從 **Gateway** 選單選擇。
+1. 依下方指示接線並燒錄 Uno 和 ESP32。 [硬體與接線](#硬體與接線) · [編譯與燒錄](#編譯與燒錄)
+2. 為 ESP32 供電，再用手機設定 Wi-Fi。 [手機設定 Wi-Fi](#手機設定-wi-fi)
+3. 如要用相機點算車輛，請將電腦接到同一路由器，並在啟動程式按 Enter 開啟控制台。按 **Open camera** 並允許瀏覽器使用鏡頭。控制台找到一台 ESP32 時會自動配對。如果找到多台，請從 **Gateway** 選單選擇。
 4. 鏡頭對準兩道等候區。按 **Select Road A** 和 **Select Road B** 分別畫框，清空兩道再按 **Capture empty background**。放回車輛後，等數字穩定再按 **Start sending camera counts**。也可以在 **Manual counts** 直接輸入數量。 [相機設定與校正指南](browser_camera/README.zh-TW.md#校正並傳送車輛數量)
 
 ![英文控制台，包含 ESP32 連線、相機及手動車數控制](img/camera-dashboard.png)
@@ -38,6 +38,18 @@ Windows x64 使用 EXE 安裝程式。Linux 與 macOS 請選擇符合處理器�
 ![固定在腳架上的鏡頭對準顯示車流測試場的螢幕](img/camera-test-setup.jpg)
 
 校正和測試期間，讓鏡頭與畫面保持固定。
+
+## 手機設定 Wi-Fi
+
+1. 用手機連上 ESP32 熱點 **`TrafficLight-xxxxxx`**，密碼是 **`Traffic4089`**。ESP32 未儲存網絡設定，或約 12 秒內連不上已儲存的網絡時，便會開啟熱點。手機顯示熱點無法上網時，仍可保持連線。
+2. 用手機瀏覽器開啟 [http://192.168.4.1](http://192.168.4.1)，輸入路由器的 **2.4 GHz** Wi-Fi 名稱和密碼，再按 **Connect and save**。ESP32 連線及取得 IP 位址後便會儲存資料。
+3. 將手機切回路由器的 Wi-Fi，再開啟設定頁顯示的網址。ESP32 斷電重開或暫時斷線後會自動重連，成功連線約 30 秒後便會關閉設定熱點。
+
+沒有路由器時，可以留在 ESP32 熱點，按 **Open traffic light controls and phase log**，直接在手機輸入車數或查看紀錄。相機辨識仍由電腦處理。 [USB 設定及相機指南](browser_camera/README.zh-TW.md#加入電腦的網路)
+
+## 查看燈號時間紀錄
+
+**Light timing log** 顯示最近 60 個已完成的燈號階段，包括 Uno 開機後開始該階段的時間，以及實際持續秒數。關閉網頁後，ESP32 仍會繼續收集紀錄。任一塊板重新啟動後會重新記錄。請使用 v1.3.0 或更新版本的相機控制台，更新兩塊板的韌體，並接上雙向 UART。
 
 ## 硬體與接線
 

@@ -18,12 +18,18 @@ from browser_camera.server import make_server
 
 class MockGateway(BaseHTTPRequestHandler):
     def do_GET(self):
-        if self.path != '/api/gateway':
+        if self.path == '/api/gateway':
+            data = {'id': self.server.device_id, 'service': 'int4089-traffic-light', 'version': 1}
+        elif self.path == '/api/phase-log' and self.server.phase_log_supported:
+            data = {'uno_online': True, 'missed': 0, 'phases': [
+                {'phase': 1, 'started_ms': 2000, 'duration_ms': 14000},
+            ]}
+        else:
             self.send_error(404)
             return
-        body = json.dumps({'id': self.server.device_id, 'service': 'int4089-traffic-light',
-                           'version': 1}).encode('utf-8')
+        body = json.dumps(data).encode('utf-8')
         self.send_response(200)
+        self.send_header('Content-Type', 'application/json')
         self.end_headers()
         self.wfile.write(body)
 
@@ -41,6 +47,7 @@ class BrowserHostTests(unittest.TestCase):
             gateway = ThreadingHTTPServer(('127.0.0.1', 0), MockGateway)
         gateway.commands = queue.Queue()
         gateway.device_id = '001122aabbcc'
+        gateway.phase_log_supported = True
         cls.gateway = gateway
         cls.addClassCleanup(gateway.server_close)
         threading.Thread(target=gateway.serve_forever, daemon=True).start()
@@ -86,11 +93,29 @@ class BrowserHostTests(unittest.TestCase):
         self.assertEqual(code, 200)
         self.assertIn(b'<html lang="en">', body)
         self.assertIn(b'Traffic Light Dashboard', body)
+        self.assertIn(b'Light timing log', body)
 
     def test_reports_manual_gateway(self):
         code, body = self.request('GET', '/api/gateways')
         self.assertEqual((code, json.loads(body)),
                          (200, {'mode': 'manual', 'address': '127.0.0.1', 'gateways': []}))
+
+    def test_reads_completed_phases_from_configured_gateway(self):
+        code, body = self.request('GET', '/api/phase-log')
+        self.assertEqual((code, json.loads(body)), (200, {
+            'uno_online': True, 'missed': 0, 'phases': [
+                {'phase': 1, 'started_ms': 2000, 'duration_ms': 14000},
+            ],
+        }))
+
+    def test_older_gateway_can_still_accept_counts(self):
+        with patch.object(self.gateway, 'phase_log_supported', False):
+            code, body = self.request('GET', '/api/phase-log')
+            self.assertEqual((code, body), (501, b'Update the ESP32 firmware to see the light timing log.'))
+            code, _ = self.request('POST', '/api/counts', b'ns=1&ew=0',
+                                   {'Content-Type': 'application/x-www-form-urlencoded'})
+            self.assertEqual(code, 200)
+            self.assertEqual(self.gateway.commands.get_nowait(), ('/api/counts', b'ns=1&ew=0'))
 
     def test_automatic_commands_require_the_paired_device_identity(self):
         device_id = self.gateway.device_id
@@ -111,6 +136,10 @@ class BrowserHostTests(unittest.TestCase):
                     code, _ = self.request('POST', '/api/auto', b'', {'X-Gateway-ID': device_id}, port=port)
                     self.assertEqual(code, 200)
                     self.assertEqual(self.gateway.commands.get_nowait(), ('/api/auto', b''))
+                    for identifier, expected in ((None, 409), (other_id, 503), (device_id, 200)):
+                        headers = {} if identifier is None else {'X-Gateway-ID': identifier}
+                        code, _ = self.request('GET', '/api/phase-log', headers=headers, port=port)
+                        self.assertEqual(code, expected)
                 finally:
                     host.shutdown()
 

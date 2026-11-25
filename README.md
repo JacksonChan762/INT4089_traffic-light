@@ -10,26 +10,31 @@ A classroom traffic-light model for two roads. The Arduino Uno R3 drives six LED
 
 ## Download the browser camera app
 
-Choose the build for your computer. The packages include Python and OpenCV. [GitHub Release v1.2.1](https://github.com/JacksonChan762/INT4089_traffic-light/releases/tag/v1.2.1)
+Choose the build for your computer. The packages include Python and OpenCV. [GitHub Release v1.3.0](https://github.com/JacksonChan762/INT4089_traffic-light/releases/tag/v1.3.0)
 
 | Platform | Download | Start the app |
 | --- | --- | --- |
-| Windows x64 | [Setup EXE](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.1/TrafficLight-Camera-windows-x64-setup.exe) | Run the installer, then open **Traffic Light Camera** from the Start menu. |
-| macOS Apple Silicon | [tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.1/TrafficLight-Camera-macos-apple-silicon.tar.gz) | Extract the archive and open `Start.command`. |
-| macOS Intel | [tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.1/TrafficLight-Camera-macos-intel.tar.gz) | Extract the archive and open `Start.command`. |
-| Linux x64 | [tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.1/TrafficLight-Camera-linux-x64.tar.gz) | Extract the archive and run `./start.sh` in that folder. |
-| Linux ARM64 | [tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.1/TrafficLight-Camera-linux-arm64.tar.gz) | Extract the archive and run `./start.sh` in that folder. |
+| Windows x64 | [Setup EXE](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.3.0/TrafficLight-Camera-windows-x64-setup.exe) | Run the installer, then open **Traffic Light Camera** from the Start menu. |
+| macOS Apple Silicon | [tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.3.0/TrafficLight-Camera-macos-apple-silicon.tar.gz) | Extract the archive and open `Start.command`. |
+| macOS Intel | [tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.3.0/TrafficLight-Camera-macos-intel.tar.gz) | Extract the archive and open `Start.command`. |
+| Linux x64 | [tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.3.0/TrafficLight-Camera-linux-x64.tar.gz) | Extract the archive and run `./start.sh` in that folder. |
+| Linux ARM64 | [tar.gz](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.3.0/TrafficLight-Camera-linux-arm64.tar.gz) | Extract the archive and run `./start.sh` in that folder. |
 
-Verify downloads with the [Windows EXE SHA-256](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.1/TrafficLight-Camera-windows-x64-setup.exe.sha256) or the [portable archive checksums](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.2.1/SHA256SUMS.txt).
+Verify downloads with the [Windows EXE SHA-256](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.3.0/TrafficLight-Camera-windows-x64-setup.exe.sha256) or the [portable archive checksums](https://github.com/JacksonChan762/INT4089_traffic-light/releases/download/v1.3.0/SHA256SUMS.txt).
 
 ## Quick start
 
 1. [Wire the six LEDs and the two boards](#hardware-and-wiring), then [build and upload both firmware targets](#build-and-upload).
-2. Connect the computer to the Wi‑Fi router the ESP32 will use. Plug in the ESP32 over USB, close its serial monitor and start the camera app.
-3. Type `W` and press Enter. Select the ESP32 USB port when prompted, then enter the router's 2.4 GHz Wi‑Fi details. The ESP32 restarts and the dashboard discovers it on the local network.
-4. In **Traffic Light Dashboard**, open the camera to count cars or enter counts under **Manual counts**. The Uno applies a new duration when the next green phase starts.
+2. Power the ESP32 and [set up Wi‑Fi from your phone](#set-up-wifi-from-a-phone).
+3. To count cars with a camera, connect the computer to the same router and start the camera app. In **Traffic Light Dashboard**, open the camera or enter counts under **Manual counts**. The Uno applies a new duration when the next green phase starts.
 
-Once the ESP32 is configured, press Enter at the launcher to open the dashboard. [USB Wi-Fi setup](browser_camera/README.md#join-the-computers-network)
+## Set up Wi-Fi from a phone
+
+1. Join the ESP32 hotspot **`TrafficLight-xxxxxx`** using the password **`Traffic4089`**. The hotspot starts when the ESP32 has no saved network or cannot connect for about 12 seconds. Stay connected if your phone reports that the hotspot has no internet.
+2. Open [http://192.168.4.1](http://192.168.4.1) in your phone browser. Enter your router's **2.4 GHz** Wi-Fi name and password, then choose **Connect and save**. The ESP32 saves the settings after it connects and gets an IP address.
+3. Switch your phone to the router's Wi-Fi and open the address shown on the setup page. The ESP32 reconnects to the saved network after power loss or a temporary outage. The setup hotspot closes about 30 seconds after the ESP32 reconnects.
+
+For use without a router, stay on the ESP32 hotspot and choose **Open traffic light controls and phase log**. The ESP32 page supports manual counts and the log. Camera counting runs on the computer. [USB setup and camera guide](browser_camera/README.md#join-the-computers-network)
 
 ## Use the browser dashboard
 
@@ -41,6 +46,8 @@ Open **Camera counting** to use a built-in or USB camera on the computer. For an
 4. Wait until the counts are stable, then choose **Start sending camera counts**. Keep the page in the foreground while sending.
 
 Use **Open Traffic Light Test Lab (new tab)** to test the camera against on-screen cars. The simulator shows the planned durations and a countdown when its signal cycle is running.
+
+**Light timing log** shows the latest 60 completed phases, with the time each phase began since the Uno booted and how long it actually lasted. The ESP32 collects entries in the background, including while the dashboard is closed. The log is kept in memory and starts again when either board restarts. Use Camera App v1.3.0 or later, updated firmware on both boards, and the [two-way UART wiring](#add-a-uart-level-shifter-for-uno-state).
 
 <img src="img/camera-test-setup.jpg" width="620" alt="Tripod-mounted camera aimed at the Traffic Light Test Lab on a monitor">
 
@@ -114,6 +121,7 @@ Each green starts at **10 seconds**. The Uno adds **2 seconds** per extra car on
 | `POST /api/counts` | Send form data such as `ns=3&ew=1`. Both values are integers from 0 to 99. |
 | `POST /api/auto` | Request fixed timing. |
 | `GET /api/state` | Query the Uno for its active phase, duration, time remaining and fresh counts. Returns HTTP 503 when the Uno does not return a valid reply. |
+| `GET /api/phase-log` | Read the completed phases captured by the ESP32, most recent first. Times are milliseconds measured by the Uno. |
 
 The gateway sends `C,3,1` or `A` followed by a newline over its 9600 baud UART link. In the Uno response, phase values 0–5 follow the cycle starting with all red before A green.
 

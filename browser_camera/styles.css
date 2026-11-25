@@ -42,4 +42,9 @@ input { display: block; width: 100%; margin: 3px 0 9px; }
 summary { cursor: pointer; }
 details .settings { margin-top: 8px; }
 #camera-status, #send-status { background: #edf4f7; padding: 9px 12px; border-radius: 7px; }
+.phase-log { max-height: 20rem; overflow: auto; }
+.phase-log table { width: 100%; border-collapse: collapse; font-size: .9rem; font-variant-numeric: tabular-nums; }
+.phase-log th, .phase-log td { border-bottom: 1px solid #d7e1e9; padding: 7px 4px; text-align: left; }
+.phase-log th { position: sticky; top: 0; background: white; }
+.phase-log td:not(:first-child) { white-space: nowrap; }
 @media (max-width: 760px) { main { grid-template-columns: 1fr; } }

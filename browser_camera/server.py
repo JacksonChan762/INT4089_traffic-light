@@ -25,6 +25,8 @@ ASSETS = {
 }
 ASSET_DIRECTORY = Path(__file__).resolve().parent
 GATEWAY_ROUTES = ('/api/counts', '/api/auto')
+PHASE_LOG_ROUTE = '/api/phase-log'
+MAX_PHASE_LOG_BYTES = 8192
 DOCUMENT_RESTRICTIONS = "object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'"
 CAMERA_CSP = f"default-src 'self'; media-src 'self' blob:; {DOCUMENT_RESTRICTIONS}"
 # The standalone simulator uses inline code and runs with an isolated origin.
@@ -63,7 +65,7 @@ class CameraHandler(BaseHTTPRequestHandler):
         super().setup()
 
     def log_request(self, code='-', size='-'):
-        if self.path == '/api/gateways' and str(code) == '200':
+        if self.path == PHASE_LOG_ROUTE or (self.path == '/api/gateways' and str(code) == '200'):
             return
         if self.path not in CAMERA_ROUTES or str(code) not in ('200', '409'):
             super().log_request(code, size)
@@ -97,6 +99,9 @@ class CameraHandler(BaseHTTPRequestHandler):
         if self.path == '/api/gateways':
             body = json.dumps(self.server.gateway_status()).encode('utf-8')
             self.reply(200, body, 'application/json; charset=utf-8')
+            return
+        if self.path == PHASE_LOG_ROUTE:
+            self.phase_log_get()
             return
         if self.path not in ASSETS:
             self.reply(404, b'Not found')
@@ -160,18 +165,9 @@ class CameraHandler(BaseHTTPRequestHandler):
             self.reply(400, b'Fixed timing takes no body')
             return
 
-        gateway = self.server.gateway
-        if self.server.discovery is not None:
-            identifiers = self.headers.get_all('X-Gateway-ID', [])
-            if len(identifiers) != 1 or not identifiers[0]:
-                self.reply(409, b'Choose an ESP32 on the dashboard first.')
-                return
-            selected = self.server.discovery.get(identifiers[0])
-            if selected is None or not gateway_matches(selected):
-                self.reply(503, b'The paired ESP32 is offline. Waiting for it to reconnect.')
-                return
-            gateway = selected.endpoint
-
+        gateway = self.selected_gateway()
+        if gateway is None:
+            return
         connection = http.client.HTTPConnection(*gateway, timeout=2)
         try:
             connection.request('POST', self.path, body, {
@@ -187,6 +183,41 @@ class CameraHandler(BaseHTTPRequestHandler):
             self.reply(200, b'Accepted by ESP32')
         else:
             self.reply(502, b'ESP32 rejected the command')
+
+    def selected_gateway(self):
+        if self.server.discovery is None:
+            return self.server.gateway
+        identifiers = self.headers.get_all('X-Gateway-ID', [])
+        if len(identifiers) != 1 or not identifiers[0]:
+            self.reply(409, b'Choose an ESP32 on the dashboard first.')
+            return None
+        selected = self.server.discovery.get(identifiers[0])
+        if selected is None or not gateway_matches(selected):
+            self.reply(503, b'The paired ESP32 is offline. Waiting for it to reconnect.')
+            return None
+        return selected.endpoint
+
+    def phase_log_get(self):
+        gateway = self.selected_gateway()
+        if gateway is None:
+            return
+        connection = http.client.HTTPConnection(*gateway, timeout=2)
+        try:
+            connection.request('GET', PHASE_LOG_ROUTE)
+            response = connection.getresponse()
+            status = response.status
+            body = response.read(MAX_PHASE_LOG_BYTES + 1) if status == 200 else b''
+        except (OSError, http.client.HTTPException):
+            self.reply(502, b'Cannot reach ESP32. Check its address and Wi-Fi connection.')
+            return
+        finally:
+            connection.close()
+        if status == 404:
+            self.reply(501, b'Update the ESP32 firmware to see the light timing log.')
+        elif status == 200 and 0 < len(body) <= MAX_PHASE_LOG_BYTES:
+            self.reply(200, body, 'application/json; charset=utf-8')
+        else:
+            self.reply(502, b'Could not read the ESP32 phase log.')
 
 
 class CameraServer(ThreadingHTTPServer):

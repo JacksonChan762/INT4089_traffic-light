@@ -5,7 +5,9 @@
 int main() {
   TrafficController c;
   assert(!c.tick(1999));
+  assert(c.completed.sequence == 0);
   assert(c.tick(2000) && c.phase == TrafficController::NS_GREEN && c.duration == 10000);
+  assert(c.completed.sequence == 1 && c.completed.phase == TrafficController::ALL_RED_TO_NS);
   c.counts(99, 0, 3000);
   assert(c.duration == 10000); // An incoming update cannot change an active phase.
   assert(c.green(true, 3000) == 20000 && c.green(false, 3000) == 10000);
@@ -16,6 +18,8 @@ int main() {
   c.counts(2, 5, 16999);
   assert(c.tick(17000) && c.phase == TrafficController::EW_GREEN && c.duration == 16000);
   assert(c.tick(33000) && c.phase == TrafficController::EW_YELLOW);
+  assert(c.completed.sequence == 5 && c.completed.phase == TrafficController::EW_GREEN);
+  assert(c.completed.startedMs == 17000 && c.completed.durationMs == 16000);
   assert(c.tick(36000) && c.phase == TrafficController::ALL_RED_TO_NS);
   assert(c.tick(38000) && c.phase == TrafficController::NS_GREEN && c.duration == 10000);
   c.counts(4, 4, 40000);
@@ -31,11 +35,13 @@ int main() {
   wrap.started = UINT32_MAX - 999;
   assert(!wrap.tick(999));
   assert(wrap.tick(1000));
+  assert(wrap.completed.durationMs == 2000);
   wrap.counts(5, 0, UINT32_MAX - 999);
   assert(wrap.fresh(1000) && !wrap.fresh(4000));
   TrafficController late;
   assert(late.tick(100000) && late.phase == TrafficController::NS_GREEN);
   assert(late.tick(200000) && late.phase == TrafficController::NS_YELLOW);
+  assert(late.completed.startedMs == 100000 && late.completed.durationMs == 100000);
   assert(!late.tick(200001)); // Delayed execution still gives yellow its full interval.
   puts("PASS: phase order, timing, bounded extension, stale data, parser, rollover, delayed loop");
 }

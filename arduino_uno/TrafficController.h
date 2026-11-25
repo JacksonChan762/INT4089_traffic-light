@@ -5,7 +5,14 @@
 class TrafficController {
 public:
   enum Phase { ALL_RED_TO_NS, NS_GREEN, NS_YELLOW, ALL_RED_TO_EW, EW_GREEN, EW_YELLOW };
+  struct CompletedPhase {
+    uint32_t sequence;
+    Phase phase;
+    uint32_t startedMs;
+    uint32_t durationMs;
+  };
   Phase phase = ALL_RED_TO_NS;
+  CompletedPhase completed = {};
   uint32_t started = 0, duration = 2000, received = 0;
   uint8_t ns = 0, ew = 0;
   bool adaptive = false;
@@ -24,6 +31,7 @@ public:
   }
   bool tick(uint32_t now) {
     if (uint32_t(now - started) < duration) return false;
+    completed = {completed.sequence + 1, phase, started, uint32_t(now - started)};
     switch (phase) {
       case ALL_RED_TO_NS: phase = NS_GREEN; duration = green(true, now); break;
       case NS_GREEN: phase = NS_YELLOW; duration = 3000; break;

@@ -7,6 +7,7 @@
 #include <esp_mac.h>
 #include <limits.h>
 #include <string.h>
+#include "WifiSetupPage.h"
 
 // Assumes a classic ESP32-WROOM-32 development board, not ESP32-C3/S3.
 constexpr uint16_t GATEWAY_PORT = 80;
@@ -34,6 +35,9 @@ button:focus-visible,input:focus-visible{outline:2px solid #006bae;outline-offse
 table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
 th,td{text-align:left;padding:8px 4px;border-bottom:1px solid #d7e1e9}
 td,thead th:not(:first-child){text-align:right;white-space:nowrap}
+.phase-log{max-height:20rem;overflow:auto}
+.phase-log td:first-child{text-align:left;white-space:normal}
+.phase-log th{position:sticky;top:0;background:white}
 #status{margin-bottom:0;padding:10px 12px;background:#edf4f7;border-radius:7px}
 .note{color:#46596a;font-size:.92rem;margin-bottom:0}
 dl{margin-bottom:0;font-variant-numeric:tabular-nums}
@@ -78,6 +82,16 @@ dd{margin:0;font-weight:600}
 </table>
 <p class="note">Both roads are red for 2 seconds after each yellow. The Uno sets each green duration when that phase begins.</p>
 <p class="note">Check the Uno State above for actual phase times.</p>
+</section>
+<section aria-labelledby="log-heading">
+<h2 id="log-heading">Light timing log</h2>
+<p id="log-status" role="status">Reading the phase log…</p>
+<div id="log-table" class="phase-log" hidden>
+  <table>
+    <thead><tr><th scope="col">Phase</th><th scope="col">Start since boot</th><th scope="col">Duration</th></tr></thead>
+    <tbody id="log-rows"></tbody>
+  </table>
+</div>
 </section>
 </main>
 <script>
@@ -186,6 +200,42 @@ async function tick() {
   await refreshUnoState();
 }
 
+let readingLog = false, renderedPhases = '';
+async function refreshLog() {
+  if (document.hidden || readingLog) return;
+  readingLog = true;
+  const logStatus = document.getElementById('log-status');
+  const logTable = document.getElementById('log-table');
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 2500);
+  try {
+    const response = await fetch('/api/phase-log', {cache: 'no-store', signal: controller.signal});
+    if (!response.ok) throw Error();
+    const log = await response.json();
+    const signature = JSON.stringify(log.phases);
+    if (signature !== renderedPhases) {
+      const rows = log.phases.map(entry => {
+        const row = document.createElement('tr');
+        for (const value of [phases[entry.phase], (entry.started_ms / 1000).toFixed(2) + ' s',
+          (entry.duration_ms / 1000).toFixed(2) + ' s']) row.insertCell().textContent = value;
+        return row;
+      });
+      document.getElementById('log-rows').replaceChildren(...rows);
+      logTable.hidden = rows.length === 0;
+      renderedPhases = signature;
+    }
+    const message = !log.uno_online ? 'Uno log unavailable. Check the firmware and the serial return wire.' :
+      !log.phases.length ? 'Waiting for the first completed phase.' : 'Latest completed phases from the Uno.';
+    const status = log.missed ? message + ' Missed phases: ' + log.missed + '.' : message;
+    if (logStatus.textContent !== status) logStatus.textContent = status;
+  } catch {
+    logStatus.textContent = 'Could not read the ESP32 phase log. Retrying…';
+  } finally {
+    clearTimeout(timer);
+    readingLog = false;
+  }
+}
+
 form.addEventListener('input', () => showPlan(selectedCounts()));
 form.onsubmit = event => {
   event.preventDefault();
@@ -224,6 +274,8 @@ document.addEventListener('visibilitychange', () => {
   void tick();
 });
 setInterval(tick, 1000);
+setInterval(refreshLog, 2500);
+void refreshLog();
 showPlan(selectedCounts());
 </script></body></html>)HTML";
 
@@ -266,19 +318,20 @@ bool parseUnoState(const char *line, UnoState &state) {
     readStateField(cursor, 99, state.ew) && *cursor == '\0';
 }
 
-bool requestUnoState(UnoState &state) {
+template<class Reply>
+bool requestUno(const char *query, bool (*parse)(const char *, Reply &), Reply &reply,
+                unsigned long timeoutMs) {
   constexpr size_t MAX_STALE_BYTES = 256;
-  constexpr unsigned long REPLY_TIMEOUT_MS = 220;
   for (size_t skipped = 0; skipped < MAX_STALE_BYTES && uno.available(); ++skipped) {
     uno.read();
   }
-  if (uno.available() || uno.print("S\n") != 2) return false;
+  if (uno.available() || uno.print(query) != 2) return false;
 
   char line[48];
   size_t used = 0;
   bool invalid = false;
   const unsigned long started = millis();
-  while (millis() - started < REPLY_TIMEOUT_MS) {
+  while (millis() - started < timeoutMs) {
     const int input = uno.read();
     if (input < 0) {
       delay(1);
@@ -286,7 +339,7 @@ bool requestUnoState(UnoState &state) {
       if (!invalid) {
         if (used > 0 && line[used - 1] == '\r') --used;
         line[used] = '\0';
-        if (parseUnoState(line, state)) return true;
+        if (parse(line, reply)) return true;
       }
       used = 0;
       invalid = false;
@@ -301,9 +354,81 @@ bool requestUnoState(UnoState &state) {
   return false;
 }
 
+struct PhaseRecord {
+  unsigned sequence;
+  unsigned phase;
+  unsigned startedMs;
+  unsigned durationMs;
+};
+
+constexpr unsigned PHASE_LOG_CAPACITY = 60;
+PhaseRecord phaseLog[PHASE_LOG_CAPACITY] = {};
+unsigned phaseLogNext = 0, phaseLogSize = 0, missedPhases = 0;
+unsigned long lastLogPoll = 0, lastUnoReply = 0;
+bool receivedUnoReply = false;
+
+bool parseCompletedPhase(const char *line, PhaseRecord &record) {
+  const char *cursor = line + 1;
+  return line[0] == 'L' && readStateField(cursor, UINT_MAX, record.sequence) &&
+    readStateField(cursor, 5, record.phase) && readStateField(cursor, UINT_MAX, record.startedMs) &&
+    readStateField(cursor, UINT_MAX, record.durationMs) && *cursor == '\0' &&
+    (record.sequence == 0 ? record.durationMs == 0 : record.durationMs > 0);
+}
+
+void pollPhaseLog(unsigned long now) {
+  if (now - lastLogPoll < 1000) return;
+  lastLogPoll = now;
+  PhaseRecord record{};
+  if (!requestUno("L\n", parseCompletedPhase, record, 125)) return;
+  receivedUnoReply = true;
+  lastUnoReply = millis();
+
+  if (phaseLogSize) {
+    const auto &previous = phaseLog[(phaseLogNext + PHASE_LOG_CAPACITY - 1) % PHASE_LOG_CAPACITY];
+    if (record.sequence == previous.sequence && record.phase == previous.phase &&
+        record.startedMs == previous.startedMs && record.durationMs == previous.durationMs) return;
+    if (record.sequence <= previous.sequence) {
+      // A restarted Uno begins a new uptime timeline.
+      phaseLogNext = phaseLogSize = missedPhases = 0;
+    } else {
+      missedPhases += record.sequence - previous.sequence - 1;
+    }
+  }
+  if (!record.sequence) return;
+  phaseLog[phaseLogNext] = record;
+  phaseLogNext = (phaseLogNext + 1) % PHASE_LOG_CAPACITY;
+  if (phaseLogSize < PHASE_LOG_CAPACITY) ++phaseLogSize;
+}
+
+void sendPhaseLog() {
+  const bool online = receivedUnoReply && millis() - lastUnoReply < 3500;
+  String body;
+  if (!body.reserve(80 + phaseLogSize * 78)) {
+    server.send(503, "text/plain", "Could not read the phase log");
+    return;
+  }
+  body = online ? "{\"uno_online\":true,\"missed\":" : "{\"uno_online\":false,\"missed\":";
+  body += missedPhases;
+  body += ",\"phases\":[";
+  for (unsigned i = 0; i < phaseLogSize; ++i) {
+    const auto &entry = phaseLog[(phaseLogNext + PHASE_LOG_CAPACITY - 1 - i) % PHASE_LOG_CAPACITY];
+    char row[78];
+    snprintf(row, sizeof(row), "%s{\"phase\":%u,\"started_ms\":%u,\"duration_ms\":%u}",
+             i ? "," : "", entry.phase, entry.startedMs, entry.durationMs);
+    body += row;
+  }
+  body += "]}";
+  server.sendHeader("Cache-Control", "no-store");
+  server.send(200, "application/json", body);
+}
+
 constexpr char WIFI_NAMESPACE[] = "traffic-wifi";
 constexpr char WIFI_KEY[] = "credentials";
-constexpr unsigned long WIFI_RETRY_MS = 30000;
+constexpr char SETUP_PASSWORD[] = "Traffic4089";
+constexpr unsigned long WIFI_RETRY_MS = 20000;
+constexpr unsigned long WIFI_TRIAL_TIMEOUT_MS = 45000;
+constexpr unsigned long WIFI_SETUP_DELAY_MS = 12000;
+constexpr unsigned long WIFI_SETUP_GRACE_MS = 30000;
 constexpr unsigned long DISCOVERY_RETRY_MS = 10000;
 
 // Keep the stored layout so existing Wi-Fi settings survive a firmware upload.
@@ -313,14 +438,20 @@ struct WifiCredentials {
 };
 
 enum class ConsoleStep { Command, Ssid, Password };
+enum class WifiSetupState { Idle, Queued, Connecting, Connected, Failed, SaveFailed };
 
 WifiCredentials station = {};
 WifiCredentials pending = {};
+WifiCredentials candidate = {};
 ConsoleStep consoleStep = ConsoleStep::Command;
-unsigned long lastStationAttempt = 0;
+WifiSetupState wifiSetupState = WifiSetupState::Idle;
+unsigned long lastStationAttempt = 0, disconnectedSince = 0, connectedSince = 0;
+unsigned long trialStarted = 0;
 IPAddress reportedStationIP;
 char gatewayId[13] = {};
 char gatewayHostname[sizeof("traffic-light-xxxxxx")] = {};
+char setupSsid[sizeof("TrafficLight-xxxxxx")] = "TrafficLight-setup";
+bool setupAccess = false;
 bool discoveryStarted = false;
 unsigned long lastDiscoveryAttempt = 0;
 
@@ -334,6 +465,7 @@ void initializeGatewayIdentity() {
     snprintf(gatewayId + i * 2, 3, "%02x", static_cast<unsigned>(mac[i]));
   }
   snprintf(gatewayHostname, sizeof(gatewayHostname), "traffic-light-%s", gatewayId + 6);
+  snprintf(setupSsid, sizeof(setupSsid), "TrafficLight-%s", gatewayId + 6);
 }
 
 void startGatewayDiscovery() {
@@ -398,6 +530,70 @@ bool saveWifiCredentials(const WifiCredentials &credentials) {
   const bool saved = preferences.putBytes(WIFI_KEY, &credentials, sizeof(credentials)) == sizeof(credentials);
   preferences.end();
   return saved;
+}
+
+bool setupRequest() {
+  const IPAddress address = WiFi.softAPIP();
+  return setupAccess && server.client().localIP() == address && server.hostHeader() == address.toString();
+}
+
+void sendWifiSetupStatus() {
+  if (!setupRequest()) {
+    server.send(404, "text/plain", "Open this page on the ESP32 setup hotspot");
+    return;
+  }
+  const char *status = "idle";
+  const IPAddress address = stationAddress();
+  switch (wifiSetupState) {
+    case WifiSetupState::Queued:
+    case WifiSetupState::Connecting: status = "connecting"; break;
+    case WifiSetupState::Failed: status = "failed"; break;
+    case WifiSetupState::SaveFailed: status = "save_failed"; break;
+    default: if (address != IPAddress()) status = "connected"; break;
+  }
+  char body[64];
+  snprintf(body, sizeof(body), "{\"state\":\"%s\",\"address\":\"%s\"}", status, address.toString().c_str());
+  server.sendHeader("Cache-Control", "no-store");
+  server.send(200, "application/json", body);
+}
+
+void queueWifiSetup() {
+  if (!setupRequest() || server.header("X-Traffic-Wifi-Setup") != "1") {
+    server.send(403, "text/plain", "Open the Wi-Fi setup page on the ESP32 hotspot");
+    return;
+  }
+  if (wifiSetupState == WifiSetupState::Queued || wifiSetupState == WifiSetupState::Connecting) {
+    server.send(409, "text/plain", "The ESP32 is already trying to connect");
+    return;
+  }
+  const String ssid = server.arg("ssid");
+  const String password = server.arg("password");
+  if (ssid.isEmpty() || ssid.length() >= sizeof(candidate.ssid) || ssid.length() != strlen(ssid.c_str())) {
+    server.send(400, "text/plain", "Enter a Wi-Fi name of 1–32 bytes");
+    return;
+  }
+  if (!server.hasArg("password") || !validStationPassword(password.c_str(), password.length())) {
+    server.send(400, "text/plain", "Enter 8–63 password characters or a 64-digit hex key. Leave it blank for an open network.");
+    return;
+  }
+  candidate = {};
+  memcpy(candidate.ssid, ssid.c_str(), ssid.length());
+  memcpy(candidate.password, password.c_str(), password.length());
+  wifiSetupState = WifiSetupState::Queued;
+  server.send(202, "text/plain", "Connecting");
+}
+
+bool startStationAttempt(const WifiCredentials &credentials, unsigned long now) {
+  lastStationAttempt = now;
+  // Use the launch result, which is separate from the status of the previous link.
+  return WiFi.STA.begin() && WiFi.STA.connect(credentials.ssid, credentials.password);
+}
+
+void startSetupAccess() {
+  if (setupAccess) return;
+  setupAccess = WiFi.softAP(setupSsid, SETUP_PASSWORD);
+  if (setupAccess) Serial.printf("Phone Wi-Fi setup: join %s and open http://%s/\n",
+                               setupSsid, WiFi.softAPIP().toString().c_str());
 }
 
 void handleConsoleLine(const char *line, size_t length) {
@@ -491,15 +687,79 @@ void startWifi() {
   station.ssid[sizeof(station.ssid) - 1] = '\0';
   station.password[sizeof(station.password) - 1] = '\0';
   WiFi.persistent(false);
+  if (gatewayHostname[0]) WiFi.setHostname(gatewayHostname);
   WiFi.mode(WIFI_STA);
-  WiFi.setAutoReconnect(true);
+  // One retry loop owns the station, including while testing new credentials.
+  WiFi.setAutoReconnect(false);
+  disconnectedSince = millis();
   Serial.println("USB console commands: wifi, status.");
   if (station.ssid[0]) {
     Serial.println("Connecting to the configured Wi-Fi network...");
-    WiFi.begin(station.ssid, station.password);
-    lastStationAttempt = millis();
+    startStationAttempt(station, disconnectedSince);
   } else {
     printWifiStatus();
+  }
+}
+
+void serviceWifi(unsigned long now) {
+  bool rollback = false;
+  if (wifiSetupState == WifiSetupState::Queued) {
+    trialStarted = now;
+    const bool started = startStationAttempt(candidate, now);
+    wifiSetupState = started ? WifiSetupState::Connecting : WifiSetupState::Failed;
+    rollback = !started;
+  } else if (wifiSetupState == WifiSetupState::Connecting) {
+    if (stationAddress() != IPAddress() && WiFi.SSID() == candidate.ssid) {
+      if (saveWifiCredentials(candidate)) {
+        station = candidate;
+        candidate = {};
+        connectedSince = now;
+        wifiSetupState = WifiSetupState::Connected;
+      } else {
+        wifiSetupState = WifiSetupState::SaveFailed;
+      }
+    } else if (now - trialStarted >= WIFI_TRIAL_TIMEOUT_MS) {
+      wifiSetupState = WifiSetupState::Failed;
+    } else if (now - lastStationAttempt >= WIFI_RETRY_MS && !startStationAttempt(candidate, now)) {
+      wifiSetupState = WifiSetupState::Failed;
+    }
+    rollback = wifiSetupState == WifiSetupState::Failed || wifiSetupState == WifiSetupState::SaveFailed;
+  }
+  if (rollback) {
+    candidate = {};
+    WiFi.disconnect();
+    if (station.ssid[0]) startStationAttempt(station, now);
+  }
+
+  const IPAddress address = stationAddress();
+  const bool testing = wifiSetupState == WifiSetupState::Connecting;
+  if (address != reportedStationIP) {
+    stopGatewayDiscovery();
+    reportedStationIP = address;
+    if (address == IPAddress()) {
+      disconnectedSince = now;
+      if (wifiSetupState == WifiSetupState::Connected) wifiSetupState = WifiSetupState::Idle;
+      Serial.println("Gateway Wi-Fi disconnected. Reconnecting automatically.");
+      if (!testing && !rollback && station.ssid[0]) startStationAttempt(station, now);
+    } else {
+      connectedSince = now;
+      printGatewayAddress(address);
+      startGatewayDiscovery();
+    }
+  }
+
+  if (address == IPAddress()) {
+    if (!station.ssid[0] || now - disconnectedSince >= WIFI_SETUP_DELAY_MS) startSetupAccess();
+    if (!testing && station.ssid[0] && now - lastStationAttempt >= WIFI_RETRY_MS) {
+      startStationAttempt(station, now);
+    }
+    return;
+  }
+  if (gatewayId[0] && !discoveryStarted && now - lastDiscoveryAttempt >= DISCOVERY_RETRY_MS) {
+    startGatewayDiscovery();
+  }
+  if (setupAccess && !testing && now - connectedSince >= WIFI_SETUP_GRACE_MS) {
+    if (WiFi.softAPdisconnect(true)) setupAccess = false;
   }
 }
 
@@ -508,7 +768,16 @@ void setup() {
   // RX GPIO16 from Uno D11 through level shifter; TX GPIO17 to Uno D10.
   uno.begin(9600, SERIAL_8N1, 16, 17);
   initializeGatewayIdentity();
-  server.on("/", HTTP_GET, []() { server.send_P(200, "text/html; charset=utf-8", PAGE); });
+  const char *headers[] = {"X-Traffic-Wifi-Setup"};
+  server.collectHeaders(headers, 1);
+  server.on("/", HTTP_GET, []() {
+    server.sendHeader("Cache-Control", "no-store");
+    server.send_P(200, "text/html; charset=utf-8", setupRequest() ? WIFI_SETUP_PAGE : PAGE);
+  });
+  server.on("/control", HTTP_GET, []() { server.send_P(200, "text/html; charset=utf-8", PAGE); });
+  server.on("/api/wifi", HTTP_GET, sendWifiSetupStatus);
+  server.on("/api/wifi", HTTP_POST, queueWifiSetup);
+  server.on("/api/phase-log", HTTP_GET, sendPhaseLog);
   server.on("/api/gateway", HTTP_GET, []() {
     server.sendHeader("Cache-Control", "no-store");
     if (!gatewayId[0]) {
@@ -523,7 +792,7 @@ void setup() {
   server.on("/api/state", HTTP_GET, []() {
     server.sendHeader("Cache-Control", "no-store");
     UnoState state{};
-    if (!requestUnoState(state)) {
+    if (!requestUno("S\n", parseUnoState, state, 220)) {
       server.send(503, "application/json", "{\"available\":false}");
       return;
     }
@@ -546,32 +815,12 @@ void setup() {
   });
   server.onNotFound([]() { server.send(404, "text/plain", "Not found"); });
   startWifi();
+  server.begin();
 }
 void loop() {
   readConsole();
-  const IPAddress address = stationAddress();
-  if (address != reportedStationIP) {
-    stopGatewayDiscovery();
-    if (address == IPAddress()) {
-      server.stop();
-      Serial.println("Gateway Wi-Fi disconnected. Check the computer's network.");
-    } else {
-      if (reportedStationIP == IPAddress()) server.begin();
-      printGatewayAddress(address);
-      startGatewayDiscovery();
-    }
-    reportedStationIP = address;
-  }
-  if (address != IPAddress()) {
-    if (gatewayId[0] && !discoveryStarted && millis() - lastDiscoveryAttempt >= DISCOVERY_RETRY_MS) {
-      startGatewayDiscovery();
-    }
-    server.handleClient();
-    return;
-  }
-  if (station.ssid[0] && millis() - lastStationAttempt >= WIFI_RETRY_MS) {
-    WiFi.reconnect();
-    lastStationAttempt = millis();
-  }
+  serviceWifi(millis());
+  server.handleClient();
+  pollPhaseLog(millis());
   delay(1);
 }
