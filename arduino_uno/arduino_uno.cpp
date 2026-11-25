@@ -45,6 +45,18 @@ void sendState(uint32_t now) {
   gateway.println(controller.ew);
 }
 
+void sendCompletedPhase() {
+  const auto &phase = controller.completed;
+  gateway.print(F("L,"));
+  gateway.print(phase.sequence);
+  gateway.print(',');
+  gateway.print(int(phase.phase));
+  gateway.print(',');
+  gateway.print(phase.startedMs);
+  gateway.print(',');
+  gateway.println(phase.durationMs);
+}
+
 void setup() {
   for (uint8_t pin = 2; pin <= 7; ++pin) pinMode(pin, OUTPUT);
   Serial.begin(115200);
@@ -54,14 +66,14 @@ void setup() {
   showLights();
 }
 void loop() {
-  bool stateRequested = false;
+  char query = '\0';
   // Bound the read work so input cannot starve the light controller.
   for (uint8_t i = 0; i < 32 && gateway.available(); ++i) {
     char ch = gateway.read();
     if (ch == '\n') {
       line[used] = '\0';
       if (!overflowed) {
-        if (line[0] == 'S' && line[1] == '\0') stateRequested = true;
+        if ((line[0] == 'S' || line[0] == 'L') && line[1] == '\0') query = line[0];
         else applyCommand(line, controller, millis());
       }
       used = 0; overflowed = false;
@@ -73,5 +85,6 @@ void loop() {
   const uint32_t now = millis();
   if (controller.tick(now)) showLights();
   // Reply only on request so SoftwareSerial stays ready for count updates.
-  if (stateRequested) sendState(now);
+  if (query == 'S') sendState(now);
+  if (query == 'L') sendCompletedPhase();
 }

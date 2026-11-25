@@ -16,14 +16,18 @@ Linux
   Debian. In a terminal in the extracted folder, run ./start.sh.
 
 ESP32 Wi-Fi setup
-  Flash the current ESP32 gateway firmware. Connect the board by USB and
-  close any serial monitor. Connect the computer to the Wi-Fi router that
-  the ESP32 will use. Start the launcher, type W at the prompt and press
-  Enter. Select the ESP32 serial port if more than one port is listed.
-  Enter the router's 2.4 GHz Wi-Fi name and password. The password is
-  hidden as you type. The launcher sends the settings to the board over
-  USB. The ESP32 saves them and restarts. The launcher opens the computer
-  dashboard and discovers the ESP32 after it joins the router.
+  Flash the current ESP32 gateway firmware. From a phone, join the
+  TrafficLight-xxxxxx hotspot using the password Traffic4089 and open
+  http://192.168.4.1. Enter the router's 2.4 GHz Wi-Fi name and password.
+  The ESP32 saves the network after a successful connection and rejoins it
+  automatically. For USB setup, connect the ESP32 to the computer, close any
+  serial monitor, then type W at the launcher prompt and follow the prompts.
+
+Light timing log
+  The dashboard shows the latest completed signal phases and their actual
+  durations. Update both boards and connect the two-way UART through a level
+  shifter. The ESP32 also shows the log in its own control page.
+  https://github.com/JacksonChan762/INT4089_traffic-light#hardware-and-wiring
 
 Computer camera
   Once the ESP32 is set up, press Enter at the launcher prompt to open

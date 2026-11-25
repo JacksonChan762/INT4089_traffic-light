@@ -76,6 +76,16 @@
         <p id="send-status" role="status">No command sent yet.</p>
         <p class="hint">Keep this page in the foreground. Five seconds after the last valid counts, the next green phase returns to 10 seconds.</p>
       </section>
+      <section aria-labelledby="phase-log-title">
+        <h2 id="phase-log-title">Light timing log</h2>
+        <p id="phase-log-status" role="status">Connect to an ESP32 to see the light timing log.</p>
+        <div id="phase-log" class="phase-log" hidden>
+          <table>
+            <thead><tr><th scope="col">Phase</th><th scope="col">Start since boot</th><th scope="col">Duration</th></tr></thead>
+            <tbody id="phase-log-rows"></tbody>
+          </table>
+        </div>
+      </section>
     </aside>
   </main>
 </body>
