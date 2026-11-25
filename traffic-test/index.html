@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Test camera counting with queued vehicles and an adaptive traffic signal cycle.">
+  <title>Traffic Light Test Lab</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font: 100%/1.55 system-ui, -apple-system, sans-serif;
+      color: #ecf4fb;
+      background: #0b1119;
+      --muted: #aab9c8;
+      --line: #2a3b49;
+      --amber: #ffca6d;
+      --blue: #84ddfc;
+      --red: #ff8290;
+      --green: #88ebaa;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(ellipse at 50% 0, #192a39, #0b1119 47rem);
+    }
+    main { width: min(100% - 2rem, 72rem); margin: auto; padding: 2.75rem 0 2.25rem; }
+    h1 { margin: 0; font-size: clamp(2.2rem, 6vw, 3.6rem); line-height: 1.1; letter-spacing: -.04em; }
+    header > p { margin: .65rem 0 1.55rem; color: var(--muted); }
+    .lab {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 1rem;
+      background: #121d28;
+      box-shadow: 0 1.25rem 4rem #0005;
+    }
+    .lab-top, .controls {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: .6rem 1rem;
+      padding: .7rem 1rem;
+    }
+    .lab-top { border-bottom: 1px solid var(--line); }
+    .controls { border-top: 1px solid var(--line); }
+    .signal-now { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .9rem; }
+    .status { display: flex; align-items: center; gap: .6rem; min-width: 10rem; font-weight: 650; }
+    .status::before { content: ""; width: .55rem; height: .55rem; border-radius: 50%; background: var(--muted); }
+    .status[data-signal="red"]::before { background: var(--red); }
+    .status[data-signal="yellow"]::before { background: var(--amber); }
+    .status[data-signal="green"]::before { background: var(--green); }
+    .phase-timer { min-width: 8.75rem; color: var(--muted); font-size: .875rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .phase-timer[hidden] { display: inline-block; visibility: hidden; }
+    .phase-timer output:first-child { color: #ecf4fb; font-weight: 700; }
+    .viewport { display: grid; place-items: center; min-height: 0; background: #111c25; }
+    canvas { display: block; width: 100%; height: auto; }
+    .settings, .actions { display: flex; flex-wrap: wrap; align-items: center; gap: .55rem .85rem; }
+    label { display: flex; align-items: center; gap: .43rem; font-size: .875rem; font-weight: 650; }
+    label[for="road-a-count"] { color: var(--amber); }
+    label[for="road-b-count"] { color: var(--blue); }
+    button, select {
+      min-height: 2.75rem;
+      border: 1px solid #3b5163;
+      border-radius: .55rem;
+      color: #ecf4fb;
+      background: #1c2b38;
+      font: inherit;
+    }
+    select {
+      appearance: none;
+      padding: .35rem 1.6rem .35rem .65rem;
+      background: linear-gradient(45deg, transparent 50%, #bdcbd7 50%) right .72rem center / .28rem .28rem no-repeat,
+                  linear-gradient(135deg, #bdcbd7 50%, transparent 50%) right .46rem center / .28rem .28rem no-repeat,
+                  #1c2b38;
+      font-variant-numeric: tabular-nums;
+    }
+    button { cursor: pointer; padding: .35rem .9rem; font-weight: 650; }
+    button:not(:disabled):hover, select:hover { border-color: #8faabf; }
+    button:disabled { cursor: default; color: #8d9eac; }
+    button:focus-visible, select:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
+    .primary { background: var(--blue); border-color: var(--blue); color: #061b29; min-width: 7rem; }
+    .primary:not(:disabled):hover { background: #a5e7ff; border-color: #a5e7ff; }
+    .timing-plan {
+      display: grid;
+      grid-template-columns: 1fr 1fr minmax(9rem, .65fr);
+      gap: .8rem 1.5rem;
+      padding: .8rem 1rem;
+      border-top: 1px solid var(--line);
+      background: #0f1923;
+    }
+    .timing-plan h2 { margin: 0 0 .3rem; font-size: .9rem; }
+    .road-a h2 { color: var(--amber); }
+    .road-b h2 { color: var(--blue); }
+    .timing-plan dl { display: flex; flex-wrap: wrap; gap: .25rem clamp(.65rem, 2.1vw, 1.65rem); margin: 0; }
+    .timing-plan dt { color: var(--muted); font-size: .875rem; }
+    .timing-plan dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .timing-plan .green { color: var(--green); }
+    .timing-plan .yellow { color: var(--amber); }
+    .timing-plan .red { color: var(--red); }
+    .help { margin: .95rem .05rem 0; color: var(--muted); font-size: .9375rem; }
+    .help strong { color: #ecf4fb; }
+    body.expanded { overflow: hidden; }
+    .expanded .lab {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      overflow: auto;
+      border: 0;
+      border-radius: 0;
+    }
+    .expanded .viewport { container-type: size; }
+    .expanded canvas { width: min(100%, 222.222cqh); }
+    @media (max-width: 640px) {
+      main { width: min(100% - 1.25rem, 72rem); padding-top: 1.65rem; }
+      .signal-now { display: grid; gap: .1rem; }
+      .controls { align-items: stretch; flex-direction: column; }
+      .actions > button { flex: 1; }
+      .timing-plan { grid-template-columns: 1fr 1fr; gap: .8rem 1rem; }
+      .timing-overview { grid-column: 1 / -1; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header id="heading">
+      <h1>Traffic Light Test Lab</h1>
+      <p>Test camera counting with cars queued at a red light, then run the adaptive signal cycle.</p>
+    </header>
+    <section class="lab" aria-label="Traffic simulation">
+      <div class="lab-top">
+        <div class="signal-now">
+          <output id="scene-status" class="status" aria-live="polite">Empty scene</output>
+          <span id="phase-timer" class="phase-timer" hidden>
+            <output id="phase-remaining" aria-live="off"></output> left of
+            <output id="phase-duration" aria-live="off"></output>
+          </span>
+        </div>
+        <button id="expand-stage" type="button" aria-pressed="false">Expand view</button>
+      </div>
+      <div class="viewport">
+        <canvas id="traffic-view" width="1280" height="576" role="img" aria-label="Road A runs right and Road B runs left. Both roads have a waiting area, stop line and traffic signal.">Two simulated roads with traffic lights</canvas>
+      </div>
+      <div>
+        <div class="controls">
+          <div class="settings">
+            <label for="road-a-count">Road A cars <select id="road-a-count"></select></label>
+            <label for="road-b-count">Road B cars <select id="road-b-count"></select></label>
+            <label for="traffic-speed">Speed
+              <select id="traffic-speed">
+                <option value="0.5">0.5×</option>
+                <option value="1" selected>1×</option>
+                <option value="1.5">1.5×</option>
+              </select>
+            </label>
+          </div>
+          <div class="actions">
+            <button id="empty-scene" type="button" disabled>Clear roads</button>
+            <button id="run-toggle" class="primary" type="button">Queue cars</button>
+          </div>
+        </div>
+        <div class="timing-plan" role="group" aria-label="Simulated timing for the selected counts">
+          <div class="road-a">
+            <h2>Road A</h2>
+            <dl>
+              <div><dt>Green</dt><dd id="road-a-green" class="green"></dd></div>
+              <div><dt>Yellow</dt><dd id="road-a-yellow" class="yellow"></dd></div>
+              <div><dt>Red</dt><dd id="road-a-red" class="red"></dd></div>
+            </dl>
+          </div>
+          <div class="road-b">
+            <h2>Road B</h2>
+            <dl>
+              <div><dt>Green</dt><dd id="road-b-green" class="green"></dd></div>
+              <div><dt>Yellow</dt><dd id="road-b-yellow" class="yellow"></dd></div>
+              <div><dt>Red</dt><dd id="road-b-red" class="red"></dd></div>
+            </dl>
+          </div>
+          <div class="timing-overview">
+            <h2>Planned cycle</h2>
+            <dl>
+              <div><dt>All red</dt><dd id="all-red-duration"></dd></div>
+              <div><dt>Full cycle</dt><dd id="cycle-duration"></dd></div>
+            </dl>
+          </div>
+        </div>
+      </div>
+    </section>
+    <p class="help" id="camera-help">Frame both dashed waiting areas in the camera dashboard and capture an empty background. Then select <strong>Queue cars</strong> and compare the detected counts with the numbers set here.</p>
+    <noscript>Enable JavaScript to run the simulation.</noscript>
+  </main>
+  <script>
+    const canvas = document.getElementById("traffic-view");
+    const context = canvas.getContext("2d", { alpha: false });
+    const background = document.createElement("canvas");
+    background.width = canvas.width;
+    background.height = canvas.height;
+    const paint = background.getContext("2d");
+    const roads = [
+      { label: "Road A", y: 72, sign: 1, count: document.getElementById("road-a-count"),
+        initial: 3, colors: ["#ffcc66", "#eaf792", "#ff9f85"], labelY: 46, lanes: [[], []] },
+      { label: "Road B", y: 318, sign: -1, count: document.getElementById("road-b-count"),
+        initial: 2, colors: ["#80d8fd", "#c6aeff", "#e1efff"], labelY: 548, lanes: [[], []] },
+    ];
+    const roadHeight = 186;
+    const carsPerLane = 4;
+    const carLimit = carsPerLane * 2;
+    const carHalfWidth = 61;
+    const queueSpacing = 178;
+    const laneStagger = queueSpacing / 2;
+    const stopLine = canvas.width - 112;
+    const frontOfQueue = stopLine - carHalfWidth - 14;
+    // Keep the waiting area unchanged so saved camera framing still fits.
+    const backOfWaitingArea = stopLine - 781;
+    const yellowSeconds = 3;
+    const allRedSeconds = 2;
+    const allRed = { seconds: allRedSeconds, lights: ["red", "red"] };
+    const phases = [
+      allRed,
+      { lights: ["green", "red"] },
+      { seconds: yellowSeconds, lights: ["yellow", "red"] },
+      allRed,
+      { lights: ["red", "green"] },
+      { seconds: yellowSeconds, lights: ["red", "yellow"] },
+    ];
+    const bulbs = [
+      ["red", "#ff8290"],
+      ["yellow", "#ffd36b"],
+      ["green", "#88ebaa"],
+    ];
+    const runToggle = document.getElementById("run-toggle");
+    const emptyScene = document.getElementById("empty-scene");
+    const expandStage = document.getElementById("expand-stage");
+    const status = document.getElementById("scene-status");
+    const phaseTimer = document.getElementById("phase-timer");
+    const remainingTime = document.getElementById("phase-remaining");
+    const totalPhaseTime = document.getElementById("phase-duration");
+    const speed = document.getElementById("traffic-speed");
+
+    let state = "empty";
+    let phaseIndex = 0;
+    let phaseElapsed = 0;
+    let phaseDuration = allRedSeconds;
+    let animation = null;
+    let lastFrame = null;
+
+    function roundedRect(drawing, x, y, width, height, radius, color) {
+      drawing.beginPath();
+      drawing.moveTo(x + radius, y);
+      drawing.arcTo(x + width, y, x + width, y + height, radius);
+      drawing.arcTo(x + width, y + height, x, y + height, radius);
+      drawing.arcTo(x, y + height, x, y, radius);
+      drawing.arcTo(x, y, x + width, y, radius);
+      drawing.fillStyle = color;
+      drawing.fill();
+    }
+
+    function arrow(drawing, x, y, direction, color) {
+      drawing.save();
+      drawing.translate(x, y);
+      drawing.scale(direction, 1);
+      drawing.strokeStyle = color;
+      drawing.lineWidth = 4;
+      drawing.lineCap = "round";
+      drawing.lineJoin = "round";
+      drawing.beginPath();
+      drawing.moveTo(-16, 0);
+      drawing.lineTo(15, 0);
+      drawing.moveTo(5, -9);
+      drawing.lineTo(15, 0);
+      drawing.lineTo(5, 9);
+      drawing.stroke();
+      drawing.restore();
+    }
+
+    function roadX(road, progress) {
+      return road.sign === 1 ? progress : canvas.width - progress;
+    }
+
+    function drawBackground() {
+      paint.fillStyle = "#17232c";
+      paint.fillRect(0, 0, canvas.width, canvas.height);
+      paint.fillStyle = "#20303a";
+      for (let x = 16; x < canvas.width; x += 24) {
+        for (const y of [15, 57, 276, 298, 521, 559]) {
+          paint.fillRect(x, y, 3, 3);
+        }
+      }
+
+      for (const road of roads) {
+        const accent = road.colors[0];
+        paint.fillStyle = "#0e1921";
+        paint.fillRect(0, road.y - 4, canvas.width, roadHeight + 8);
+        paint.fillStyle = "#283640";
+        paint.fillRect(0, road.y, canvas.width, roadHeight);
+        paint.fillStyle = "#57707e";
+        paint.fillRect(0, road.y, canvas.width, 3);
+        paint.fillRect(0, road.y + roadHeight - 3, canvas.width, 3);
+        paint.fillStyle = "#667b87";
+        for (let x = 22; x < canvas.width; x += 90) {
+          paint.fillRect(x, road.y + roadHeight / 2 - 1, 41, 2);
+        }
+        for (const x of [115, 465, 815, 1165]) {
+          arrow(paint, x, road.y + 46, road.sign, "#40525e");
+          arrow(paint, x, road.y + 140, road.sign, "#40525e");
+        }
+        const lineX = roadX(road, stopLine);
+        const waitX = roadX(road, backOfWaitingArea);
+        paint.save();
+        paint.setLineDash([8, 8]);
+        paint.strokeStyle = road.sign === 1 ? "#b89b66" : "#6c98af";
+        paint.lineWidth = 2;
+        paint.strokeRect(Math.min(lineX, waitX), road.y + 8, Math.abs(lineX - waitX), roadHeight - 16);
+        paint.restore();
+        paint.fillStyle = "#c8d6df";
+        paint.fillRect(lineX - 3, road.y + 7, 6, roadHeight - 14);
+
+        const labelX = road.sign === 1 ? 24 : canvas.width - 172;
+        roundedRect(paint, labelX, road.labelY - 29, 148, 39, 9, "#0e1921");
+        paint.font = "700 23px system-ui, sans-serif";
+        paint.fillStyle = accent;
+        paint.fillText(road.label, labelX + 17, road.labelY - 2);
+        arrow(paint, labelX + 115, road.labelY - 10, road.sign, accent);
+      }
+      paint.fillStyle = "#46606d";
+      paint.fillRect(0, 287, canvas.width, 2);
+    }
+
+    function drawCar(x, y, direction, color) {
+      context.save();
+      context.translate(x, y);
+      context.scale(direction, 1);
+      roundedRect(context, -carHalfWidth, -28, carHalfWidth * 2, 56, 13, color);
+      roundedRect(context, -40, -26, 16, 5, 2, "#111b23");
+      roundedRect(context, 26, -26, 16, 5, 2, "#111b23");
+      roundedRect(context, -40, 21, 16, 5, 2, "#111b23");
+      roundedRect(context, 26, 21, 16, 5, 2, "#111b23");
+      roundedRect(context, -36, -17, 67, 34, 9, "#86a6b8");
+      roundedRect(context, -19, -13, 30, 26, 4, color);
+      roundedRect(context, 15, -12, 13, 24, 3, "#a5bfcb");
+      roundedRect(context, 50, -18, 7, 9, 2, "#ffffff");
+      roundedRect(context, 50, 9, 7, 9, 2, "#ffffff");
+      roundedRect(context, -57, -17, 6, 8, 2, "#e15f69");
+      roundedRect(context, -57, 9, 6, 8, 2, "#e15f69");
+      context.restore();
+    }
+
+    function drawSignal(road, signal) {
+      const x = roadX(road, stopLine) - 51;
+      const y = road.labelY - 29;
+      roundedRect(context, x, y, 102, 39, 9, "#0e1921");
+      bulbs.forEach(([light, color], index) => {
+        context.beginPath();
+        context.arc(x + 23 + index * 28, y + 19.5, 9, 0, 2 * Math.PI);
+        context.fillStyle = light === signal ? color : "#364652";
+        context.fill();
+      });
+    }
+
+    function resetQueue(road) {
+      const count = Number(road.count.value);
+      road.lanes = [[], []];
+      for (let index = 0; index < count; index++) {
+        // Fill one lane first to give small queues more space between cars.
+        const lane = Math.floor(index / carsPerLane);
+        const position = frontOfQueue - lane * laneStagger - (index % carsPerLane) * queueSpacing;
+        road.lanes[lane].push({
+          position,
+          color: road.colors[index % road.colors.length],
+        });
+      }
+    }
+
+    function advanceQueue(road, light, movement) {
+      road.lanes.forEach((lane, laneIndex) => {
+        const stopAt = frontOfQueue - laneIndex * laneStagger;
+        lane.sort((first, second) => second.position - first.position);
+        let spaceAhead = Infinity;
+        for (const car of lane) {
+          // A car that already left the queue can finish crossing the line.
+          const limit = light === "green" || car.position > stopAt ? Infinity : stopAt;
+          car.position = Math.min(car.position + movement, spaceAhead, limit);
+          spaceAhead = car.position - queueSpacing;
+        }
+        for (const car of lane) {
+          if (car.position >= canvas.width + carHalfWidth) {
+            car.position -= canvas.width + 2 * carHalfWidth;
+          }
+        }
+      });
+    }
+
+    function draw() {
+      context.drawImage(background, 0, 0);
+      const { lights } = phases[phaseIndex];
+      roads.forEach((road, index) => {
+        drawSignal(road, lights[index]);
+        if (state === "empty") return;
+        road.lanes.forEach((lane, laneIndex) => {
+          const y = road.y + (laneIndex === 0 ? 42 : 144);
+          for (const car of lane) drawCar(roadX(road, car.position), y, road.sign, car.color);
+        });
+      });
+    }
+
+    function greenSeconds(roadIndex) {
+      const count = Number(roads[roadIndex].count.value);
+      const opposingCount = Number(roads[1 - roadIndex].count.value);
+      const extraCars = Math.min(5, Math.max(0, count - opposingCount));
+      return 10 + 2 * extraCars;
+    }
+
+    function durationText(seconds) {
+      return `${seconds} s`;
+    }
+
+    function updateTimingPlan() {
+      const clearance = yellowSeconds + 2 * allRedSeconds;
+      const greens = roads.map((road, index) => greenSeconds(index));
+      ["a", "b"].forEach((name, index) => {
+        document.getElementById(`road-${name}-green`).textContent = durationText(greens[index]);
+        document.getElementById(`road-${name}-yellow`).textContent = durationText(yellowSeconds);
+        document.getElementById(`road-${name}-red`).textContent = durationText(greens[1 - index] + clearance);
+      });
+      document.getElementById("all-red-duration").textContent = durationText(allRedSeconds);
+      document.getElementById("cycle-duration").textContent =
+        durationText(greens[0] + greens[1] + 2 * (yellowSeconds + allRedSeconds));
+    }
+
+    function updateCountdown() {
+      const text = durationText(Math.ceil(Math.max(0, phaseDuration - phaseElapsed)));
+      if (remainingTime.value !== text) remainingTime.value = text;
+    }
+
+    function enterPhase(index) {
+      phaseIndex = index;
+      phaseElapsed = 0;
+      const phase = phases[index];
+      const activeRoad = phase.lights.findIndex(light => light !== "red");
+      const color = activeRoad === -1 ? "red" : phase.lights[activeRoad];
+      const text = {
+        empty: "Empty scene",
+        queued: "Both lights held red",
+        cycling: activeRoad === -1 ? "All red" : `${roads[activeRoad].label} ${color}`,
+      }[state];
+      if (status.value !== text) status.value = text;
+      status.dataset.signal = state === "empty" ? "" : color;
+      // Latch the green duration just as the Uno does at the start of a phase.
+      phaseDuration = phase.seconds ?? greenSeconds(activeRoad);
+      totalPhaseTime.value = durationText(phaseDuration);
+      updateCountdown();
+    }
+
+    function animate(now) {
+      if (lastFrame !== null) {
+        const seconds = (now - lastFrame) / 1000;
+        phaseElapsed += seconds;
+        if (phaseElapsed >= phaseDuration) {
+          // Give the next phase its full interval even after a delayed frame.
+          enterPhase((phaseIndex + 1) % phases.length);
+        }
+        const movement = Math.min(.05, seconds) * 250 * Number(speed.value);
+        roads.forEach((road, index) => advanceQueue(road, phases[phaseIndex].lights[index], movement));
+        updateCountdown();
+      }
+      lastFrame = now;
+      draw();
+      animation = requestAnimationFrame(animate);
+    }
+
+    function setState(next) {
+      state = next;
+      status.dataset.state = next;
+      runToggle.textContent = { empty: "Queue cars", queued: "Start signal cycle", cycling: "Hold red" }[next];
+      emptyScene.disabled = next === "empty";
+      phaseTimer.hidden = next !== "cycling";
+      if (animation !== null) cancelAnimationFrame(animation);
+      animation = null;
+      lastFrame = null;
+      enterPhase(0);
+      if (next === "queued") roads.forEach(resetQueue);
+      draw();
+      if (next === "cycling") animation = requestAnimationFrame(animate);
+    }
+
+    function setExpanded(expanded) {
+      document.body.classList.toggle("expanded", expanded);
+      document.getElementById("heading").inert = expanded;
+      document.getElementById("camera-help").inert = expanded;
+      expandStage.setAttribute("aria-pressed", String(expanded));
+      expandStage.textContent = expanded ? "Exit expanded view" : "Expand view";
+    }
+
+    for (const road of roads) {
+      for (let count = 0; count <= carLimit; count++) {
+        road.count.add(new Option(String(count), String(count), count === road.initial, count === road.initial));
+      }
+      road.count.addEventListener("change", () => {
+        resetQueue(road);
+        updateTimingPlan();
+        draw();
+      });
+    }
+    runToggle.addEventListener("click", () => setState(state === "queued" ? "cycling" : "queued"));
+    emptyScene.addEventListener("click", () => {
+      setState("empty");
+      runToggle.focus();
+    });
+    expandStage.addEventListener("click", () => setExpanded(!document.body.classList.contains("expanded")));
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape" && document.body.classList.contains("expanded")) {
+        setExpanded(false);
+        expandStage.focus();
+      }
+    });
+    drawBackground();
+    updateTimingPlan();
+    setState("empty");
+  </script>
+</body>
+</html>
