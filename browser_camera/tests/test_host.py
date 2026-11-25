@@ -94,6 +94,8 @@ class BrowserHostTests(unittest.TestCase):
         self.assertIn(b'<html lang="en">', body)
         self.assertIn(b'Traffic Light Dashboard', body)
         self.assertIn(b'Light timing log', body)
+        self.assertIn(b'id="phase-timeline"', body)
+        self.assertIn(b'id="phase-log-summary"', body)
 
     def test_reports_manual_gateway(self):
         code, body = self.request('GET', '/api/gateways')

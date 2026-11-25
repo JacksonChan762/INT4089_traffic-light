@@ -9,8 +9,9 @@ const gatewaySelect = $("gateway-select");
 const defaultCamera = source.options[0].textContent;
 const roads = [null, null];
 const colors = ["#ffce4c", "#70d8ff"];
-const phases = ["All red before Road A", "Road A green", "Road A yellow",
-  "All red before Road B", "Road B green", "Road B yellow"];
+const signalPhases = [["red", "red"], ["green", "red"], ["yellow", "red"],
+  ["red", "red"], ["red", "green"], ["red", "yellow"]];
+const recentPhaseCount = 6;
 const secureCamera = window.isSecureContext && navigator.mediaDevices?.getUserMedia;
 
 let stream = null;
@@ -131,6 +132,45 @@ async function refreshGateways() {
   renderGateways();
 }
 
+function phaseSignal(color) {
+  const signal = document.createElement("span");
+  signal.className = "phase-signal";
+  signal.dataset.signal = color;
+  const label = document.createElement("span");
+  label.className = "phase-signal-label";
+  label.textContent = color;
+  const initial = document.createElement("span");
+  initial.className = "phase-signal-initial";
+  initial.textContent = color[0];
+  signal.append(label, initial);
+  return signal;
+}
+
+function renderPhaseLog(phases) {
+  const recent = phases.slice(0, recentPhaseCount).reverse();
+  const timeline = recent.map(entry => {
+    const [roadA, roadB] = signalPhases[entry.phase];
+    const item = document.createElement("li");
+    item.setAttribute("aria-label", `Road A ${roadA}, Road B ${roadB}, ${entry.duration_ms / 1000} seconds`);
+    const duration = document.createElement("span");
+    duration.className = "phase-seconds";
+    duration.textContent = Number((entry.duration_ms / 1000).toFixed(1));
+    item.append(phaseSignal(roadA), phaseSignal(roadB), duration);
+    return item;
+  });
+  const rows = phases.map(entry => {
+    const row = document.createElement("tr");
+    row.insertCell().textContent = `${entry.started_ms / 1000} s`;
+    for (const color of signalPhases[entry.phase]) row.insertCell().append(phaseSignal(color));
+    row.insertCell().textContent = `${entry.duration_ms / 1000} s`;
+    return row;
+  });
+  $("phase-timeline").replaceChildren(...timeline);
+  $("phase-log-rows").replaceChildren(...rows);
+  $("phase-log-summary").textContent = `Full history (${rows.length})`;
+  $("phase-log").hidden = !rows.length;
+}
+
 async function refreshPhaseLog() {
   const gateway = activeGateway();
   const key = gateway?.id ?? gateway?.address;
@@ -139,8 +179,7 @@ async function refreshPhaseLog() {
     phaseLogRequest?.abort();
     phaseLogRequest = undefined;
     renderedPhases = "";
-    $("phase-log-rows").replaceChildren();
-    $("phase-log").hidden = true;
+    renderPhaseLog([]);
     status("phase-log-status", key ? "Reading the phase log…" : "Connect to an ESP32 to see the light timing log.");
   }
   if (!key || document.hidden || phaseLogRequest) return;
@@ -157,18 +196,11 @@ async function refreshPhaseLog() {
     if (controller.signal.aborted) return;
     const signature = JSON.stringify(log.phases);
     if (signature !== renderedPhases) {
-      const rows = log.phases.map(entry => {
-        const row = document.createElement("tr");
-        for (const value of [phases[entry.phase], (entry.started_ms / 1000).toFixed(2) + " s",
-          (entry.duration_ms / 1000).toFixed(2) + " s"]) row.insertCell().textContent = value;
-        return row;
-      });
-      $("phase-log-rows").replaceChildren(...rows);
-      $("phase-log").hidden = rows.length === 0;
+      renderPhaseLog(log.phases);
       renderedPhases = signature;
     }
     const message = !log.uno_online ? "Uno log unavailable. Check the firmware and the serial return wire." :
-      !log.phases.length ? "Waiting for the first completed phase." : "Latest completed phases from the Uno.";
+      !log.phases.length ? "Waiting for the first completed phase." : "Recent completed phases, oldest to newest.";
     status("phase-log-status", log.missed ? `${message} Missed phases: ${log.missed}.` : message);
   } catch (error) {
     if (phaseLogRequest === controller) {

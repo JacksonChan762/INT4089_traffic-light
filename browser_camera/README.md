@@ -7,7 +7,7 @@ The dashboard runs on a Mac, Linux PC or Windows PC. Open the dashboard on the d
 ## Join the computer's network
 
 1. Update the ESP32 using the [build and upload instructions](../README.md#build-and-upload). Connect the computer to an existing Wi-Fi router. The router must offer **2.4 GHz Wi-Fi** for the ESP32 and let devices on its local network communicate.
-2. Connect the ESP32 by USB and close any open serial monitor. On Windows x64, run the v1.3.0 setup EXE, then open **Traffic Light Camera** from the Start menu. On macOS or Linux, extract the v1.3.0 archive and open `Start.command` or run `./start.sh`, respectively. [Release downloads](../README.md#download-the-browser-camera-app)
+2. Connect the ESP32 by USB and close any open serial monitor. On Windows x64, run the v1.3.1 setup EXE, then open **Traffic Light Camera** from the Start menu. On macOS or Linux, extract the v1.3.1 archive and open `Start.command` or run `./start.sh`, respectively. [Release downloads](../README.md#download-the-browser-camera-app)
 3. At the launcher prompt, type `W` and press Enter. Select the ESP32's serial port if more than one port is listed. Enter the router's 2.4 GHz Wi-Fi name (SSID) and password. The password stays hidden as you type, and the launcher sends the credentials to the board over USB.
 4. The ESP32 saves the settings and restarts. The launcher opens the computer dashboard and discovers the board when it joins the router. Once configured, press Enter at the launcher prompt to start the computer camera dashboard. For phone camera access, enter the computer's LAN IPv4 address at launch. [Phone camera setup](#use-a-phone-camera-in-the-browser)
 
@@ -32,9 +32,9 @@ The dashboard remembers the chosen device during the session and finds it again 
 
 ## Release packages
 
-Use the setup EXE on Windows x64 and launch **Traffic Light Camera** from the Start menu. On macOS or Linux, extract the whole archive for your processor and open its launcher. Both formats include Python and OpenCV. At the v1.3.0 launcher prompt, type `W` for USB Wi-Fi setup, press Enter for the computer camera, or enter the computer's LAN IPv4 address and provide the trusted certificate and key for a phone camera. Both camera modes discover ESP32 gateways automatically.
+Use the setup EXE on Windows x64 and launch **Traffic Light Camera** from the Start menu. On macOS or Linux, extract the whole archive for your processor and open its launcher. Both formats include Python and OpenCV. At the v1.3.1 launcher prompt, type `W` for USB Wi-Fi setup, press Enter for the computer camera, or enter the computer's LAN IPv4 address and provide the trusted certificate and key for a phone camera. Both camera modes discover ESP32 gateways automatically.
 
-Download v1.3.0 for your operating system and processor. [Release downloads](../README.md#download-the-browser-camera-app)
+Download v1.3.1 for your operating system and processor. [Release downloads](../README.md#download-the-browser-camera-app)
 
 To build the portable packaging files from source, run `python3.12 browser_camera/packaging/build.py` from the project root with Python 3.12 and pip. The archives and SHA-256 checksums appear under `dist/`.
 
